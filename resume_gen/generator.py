@@ -17,6 +17,7 @@ class ResumeGenerator:
     BODY_FONT_SIZE = 11
     NAME_FONT_SIZE = 16
     SECTION_HEADER_FONT_SIZE = 12
+    MARGIN_SIZE = 36  # 0.5 inch in points
     
     def __init__(self, json_data: Dict[str, Any]):
         """Initialize generator with JSON data.
@@ -33,10 +34,10 @@ class ResumeGenerator:
         # Set narrow margins for better space usage (0.5 inches)
         sections = self.doc.sections
         for section in sections:
-            section.top_margin = Pt(36)  # 0.5 inch
-            section.bottom_margin = Pt(36)
-            section.left_margin = Pt(36)
-            section.right_margin = Pt(36)
+            section.top_margin = Pt(self.MARGIN_SIZE)
+            section.bottom_margin = Pt(self.MARGIN_SIZE)
+            section.left_margin = Pt(self.MARGIN_SIZE)
+            section.right_margin = Pt(self.MARGIN_SIZE)
     
     def _add_paragraph(self, text: str, bold: bool = False, 
                       font_size: int = None, alignment: str = "left",
@@ -108,6 +109,22 @@ class ResumeGenerator:
                           font_size=self.SECTION_HEADER_FONT_SIZE,
                           space_after=6)
     
+    def _add_bullet_paragraph(self, text: str):
+        """Add a bullet point paragraph with proper formatting.
+        
+        Args:
+            text: Bullet point text
+        """
+        para = self.doc.add_paragraph(text, style='List Bullet')
+        para.paragraph_format.space_after = Pt(2)
+        para.paragraph_format.space_before = Pt(0)
+        
+        # Set font for bullet text
+        for run in para.runs:
+            run.font.name = self.FONT_NAME
+            run.font.size = Pt(self.BODY_FONT_SIZE)
+            run.font.color.rgb = RGBColor(0, 0, 0)
+    
     def _add_skills_section(self):
         """Add skills section."""
         skills_data = self.data.get("skills", [])
@@ -161,15 +178,7 @@ class ResumeGenerator:
             # Bullet points (starting with action verbs)
             bullets = job.get("bullets", [])
             for bullet in bullets:
-                para = self.doc.add_paragraph(bullet, style='List Bullet')
-                para.paragraph_format.space_after = Pt(2)
-                para.paragraph_format.space_before = Pt(0)
-                
-                # Set font for bullet text
-                for run in para.runs:
-                    run.font.name = self.FONT_NAME
-                    run.font.size = Pt(self.BODY_FONT_SIZE)
-                    run.font.color.rgb = RGBColor(0, 0, 0)
+                self._add_bullet_paragraph(bullet)
             
             # Add space after each job (except the last one)
             if i < len(experience_data) - 1:
@@ -220,14 +229,7 @@ class ResumeGenerator:
         for award in awards_data:
             if isinstance(award, str):
                 # Simple string award
-                para = self.doc.add_paragraph(award, style='List Bullet')
-                para.paragraph_format.space_after = Pt(2)
-                para.paragraph_format.space_before = Pt(0)
-                
-                for run in para.runs:
-                    run.font.name = self.FONT_NAME
-                    run.font.size = Pt(self.BODY_FONT_SIZE)
-                    run.font.color.rgb = RGBColor(0, 0, 0)
+                self._add_bullet_paragraph(award)
             elif isinstance(award, dict):
                 # Award with details
                 title = award.get("title", "")
@@ -240,14 +242,7 @@ class ResumeGenerator:
                 if description:
                     award_text += f" - {description}"
                 
-                para = self.doc.add_paragraph(award_text, style='List Bullet')
-                para.paragraph_format.space_after = Pt(2)
-                para.paragraph_format.space_before = Pt(0)
-                
-                for run in para.runs:
-                    run.font.name = self.FONT_NAME
-                    run.font.size = Pt(self.BODY_FONT_SIZE)
-                    run.font.color.rgb = RGBColor(0, 0, 0)
+                self._add_bullet_paragraph(award_text)
     
     def generate(self, output_path: Path):
         """Generate the resume document.

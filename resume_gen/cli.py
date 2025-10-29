@@ -29,11 +29,7 @@ def render(input_file, output_file):
         input_path = Path(input_file)
         output_path = Path(output_file)
         
-        # Validate input file
-        if not input_path.exists():
-            click.echo(f"Error: Input file '{input_file}' not found.", err=True)
-            sys.exit(1)
-        
+        # Warn if input doesn't have .json extension
         if not input_path.suffix.lower() == '.json':
             click.echo(f"Warning: Input file '{input_file}' does not have .json extension.")
         
