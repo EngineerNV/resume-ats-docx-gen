@@ -209,3 +209,4 @@ __marimo__/
 # Generated test files
 test_resume.docx
 *.docx
+output/
