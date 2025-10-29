@@ -1,0 +1,26 @@
+{
+  "header": {
+    "name": "John Smith",
+    "email": "john@example.com",
+    "phone": "555-0100"
+  },
+  "skills": ["Python", "JavaScript", "SQL"],
+  "experience": [
+    {
+      "role": "Developer",
+      "company": "Tech Co",
+      "dates": "2020 - Present",
+      "bullets": [
+        "Developed web applications",
+        "Improved system performance"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "degree": "BS Computer Science",
+      "institution": "State University",
+      "dates": "2016-2020"
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "header": {
+    "name": "Jane Doe",
+    "email": "jane.doe@email.com",
+    "phone": "(555) 123-4567",
+    "location": "San Francisco, CA",
+    "linkedin": "linkedin.com/in/janedoe",
+    "github": "github.com/janedoe"
+  },
+  "skills": {
+    "Programming Languages": ["Python", "JavaScript", "Java", "SQL"],
+    "Frameworks & Libraries": ["React", "Node.js", "Django", "Flask"],
+    "Tools & Technologies": ["Git", "Docker", "AWS", "PostgreSQL", "MongoDB"]
+  },
+  "experience": [
+    {
+      "role": "Senior Software Engineer",
+      "company": "Tech Corp",
+      "dates": "June 2021 - Present",
+      "location": "San Francisco, CA",
+      "bullets": [
+        "Developed and maintained microservices architecture serving 10M+ users daily using Python and Docker",
+        "Led migration of legacy monolith to cloud-native architecture, reducing infrastructure costs by 40%",
+        "Mentored team of 5 junior engineers, conducting code reviews and technical design sessions",
+        "Implemented CI/CD pipeline using GitHub Actions, reducing deployment time from 2 hours to 15 minutes"
+      ]
+    },
+    {
+      "role": "Software Engineer",
+      "company": "StartUp Inc",
+      "dates": "January 2019 - May 2021",
+      "location": "Austin, TX",
+      "bullets": [
+        "Built RESTful APIs using Django and PostgreSQL, handling 1M+ requests per day",
+        "Designed and implemented real-time notification system using WebSockets and Redis",
+        "Collaborated with product team to deliver 15+ features, improving user engagement by 25%",
+        "Optimized database queries, reducing average response time by 60%"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "degree": "Bachelor of Science in Computer Science",
+      "institution": "University of California, Berkeley",
+      "dates": "2015 - 2019",
+      "location": "Berkeley, CA",
+      "gpa": "3.8/4.0"
+    }
+  ],
+  "awards": [
+    {
+      "title": "Employee of the Year",
+      "date": "2022",
+      "description": "Recognized for outstanding contributions to product development"
+    },
+    {
+      "title": "Hackathon Winner",
+      "date": "2020",
+      "description": "First place in company-wide innovation challenge"
+    },
+    "Dean's List, UC Berkeley (2016-2019)"
+  ]
+}
