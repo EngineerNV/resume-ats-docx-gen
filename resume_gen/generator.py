@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from docx import Document
-from docx.shared import Pt, RGBColor
-from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from docx.shared import Pt, RGBColor, Inches
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT, WD_TAB_ALIGNMENT
 
 
 class ResumeGenerator:
@@ -41,7 +41,8 @@ class ResumeGenerator:
     
     def _add_paragraph(self, text: str, bold: bool = False, 
                       font_size: int = None, alignment: str = "left",
-                      space_after: int = 6) -> None:
+                      space_after: int = 6, italic: bool = False,
+                      underline: bool = False) -> None:
         """Add a formatted paragraph to the document.
         
         Args:
@@ -50,6 +51,8 @@ class ResumeGenerator:
             font_size: Font size in points (defaults to BODY_FONT_SIZE)
             alignment: Text alignment (left, center, right)
             space_after: Space after paragraph in points
+            italic: Whether text should be italic
+            underline: Whether text should be underlined
         """
         para = self.doc.add_paragraph()
         run = para.add_run(text)
@@ -58,6 +61,8 @@ class ResumeGenerator:
         run.font.name = self.FONT_NAME
         run.font.size = Pt(font_size if font_size else self.BODY_FONT_SIZE)
         run.bold = bold
+        run.italic = italic
+        run.underline = underline
         run.font.color.rgb = RGBColor(0, 0, 0)
         
         # Set alignment
@@ -76,11 +81,11 @@ class ResumeGenerator:
         """Add header section with name and contact information."""
         header_data = self.data.get("header", {})
         
-        # Name - 16pt bold
+        # Name - 16pt bold and underlined
         name = header_data.get("name", "")
         if name:
             self._add_paragraph(name, bold=True, font_size=self.NAME_FONT_SIZE, 
-                              alignment="center", space_after=4)
+                              alignment="center", space_after=4, underline=True)
         
         # Contact info - single line, centered
         contact_parts = []
@@ -100,14 +105,14 @@ class ResumeGenerator:
             self._add_paragraph(contact_line, alignment="center", space_after=12)
     
     def _add_section_header(self, title: str):
-        """Add a section header (uppercase, 12pt bold).
+        """Add a section header (uppercase, 12pt bold, underlined).
         
         Args:
             title: Section title
         """
         self._add_paragraph(title.upper(), bold=True, 
                           font_size=self.SECTION_HEADER_FONT_SIZE,
-                          space_after=6)
+                          space_after=6, underline=True)
     
     def _add_bullet_paragraph(self, text: str):
         """Add a bullet point paragraph with proper formatting.
@@ -154,26 +159,52 @@ class ResumeGenerator:
         self._add_section_header("Experience")
         
         for i, job in enumerate(experience_data):
-            # Job title and company - bold
-            role = job.get("role", "")
+            # Company and location on left, dates on right (same line)
             company = job.get("company", "")
-            title_line = f"{role}, {company}" if role and company else role or company
-            
-            if title_line:
-                self._add_paragraph(title_line, bold=True, space_after=2)
-            
-            # Dates and location
-            dates = job.get("dates", "")
             location = job.get("location", "")
-            date_line_parts = []
-            if dates:
-                date_line_parts.append(dates)
-            if location:
-                date_line_parts.append(location)
+            dates = job.get("dates", "")
             
-            if date_line_parts:
-                date_line = " | ".join(date_line_parts)
-                self._add_paragraph(date_line, space_after=4)
+            # Create a paragraph with company/location on left and dates on right
+            para = self.doc.add_paragraph()
+            
+            # Left side: company and location
+            left_parts = []
+            if company:
+                left_parts.append(company)
+            if location:
+                left_parts.append(location)
+            
+            if left_parts:
+                left_text = ", ".join(left_parts)
+                run_left = para.add_run(left_text)
+                run_left.font.name = self.FONT_NAME
+                run_left.font.size = Pt(self.BODY_FONT_SIZE)
+                run_left.bold = True
+                run_left.font.color.rgb = RGBColor(0, 0, 0)
+            
+            # Add tab to push dates to the right
+            if dates and left_parts:
+                # Add tab
+                para.add_run("\t")
+                
+                # Right side: dates
+                run_right = para.add_run(dates)
+                run_right.font.name = self.FONT_NAME
+                run_right.font.size = Pt(self.BODY_FONT_SIZE)
+                run_right.bold = True
+                run_right.font.color.rgb = RGBColor(0, 0, 0)
+                
+                # Set right-aligned tab stop
+                tab_stops = para.paragraph_format.tab_stops
+                tab_stops.add_tab_stop(Inches(6.0), alignment=WD_TAB_ALIGNMENT.RIGHT)
+            
+            para.paragraph_format.space_after = Pt(2)
+            para.paragraph_format.space_before = Pt(0)
+            
+            # Job title - italic on its own line
+            role = job.get("role", "")
+            if role:
+                self._add_paragraph(role, italic=True, space_after=4)
             
             # Bullet points (starting with action verbs)
             bullets = job.get("bullets", [])
