@@ -268,21 +268,26 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 
 #### VS Code GitHub Copilot
 
-The `.vscode/settings.json` file is already configured. Just **restart VS Code** to activate the MCP server.
+The `.vscode/mcp.json` file is already configured. Just **restart VS Code** to activate the MCP server.
 
-To manually configure or for user-level settings, add to your VS Code settings:
+To manually configure, create or edit `.vscode/mcp.json` in your workspace:
 
 ```json
 {
-  "github.copilot.chat.mcp.servers": {
+  "servers": {
     "resume-generator": {
-      "command": "/absolute/path/to/.venv/bin/python",
+      "command": "${workspaceFolder}/.venv/bin/python",
       "args": ["-m", "resume_mcp.server"],
-      "cwd": "/absolute/path/to/resume-ats-docx-gen"
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
     }
   }
 }
 ```
+
+**📚 For more details on MCP configuration in VS Code, see the [official documentation](https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_configuration-format).**
 
 **Test in VS Code:**
 1. Restart VS Code
