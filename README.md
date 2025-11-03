@@ -15,8 +15,33 @@ A Python CLI tool that generates ATS-friendly resumes in DOCX format from JSON i
 
 ## Installation
 
+### 1. Clone and Setup
+
 ```bash
+# Clone the repository
+git clone https://github.com/EngineerNV/resume-ats-docx-gen.git
+cd resume-ats-docx-gen
+
+# Create a virtual environment
+python3 -m venv .venv
+
+# Activate the virtual environment
+source .venv/bin/activate  # macOS/Linux
+# or
+.venv\Scripts\activate     # Windows
+
+# Install the package with MCP server support
 pip install -e .
+```
+
+### 2. Verify Installation
+
+```bash
+# Test the CLI tool
+resume-gen --help
+
+# Test the MCP server imports correctly
+python -c "from resume_mcp.server import mcp; print('✅ MCP server ready')"
 ```
 
 ## Usage
@@ -196,11 +221,130 @@ Subsection headers are rendered in uppercase with proper spacing to organize you
 resume-gen render --in example_resume.json --out my_resume.docx
 ```
 
+## MCP Server
+
+This project includes a Model Context Protocol (MCP) server that enables AI agents to generate resumes programmatically.
+
+### Setup
+
+The MCP server is automatically installed when you follow the [Installation](#installation) steps above. The package includes all necessary dependencies.
+
+**Verify MCP server installation:**
+```bash
+# Activate your virtual environment first
+source .venv/bin/activate  # macOS/Linux
+# .venv\Scripts\activate   # Windows
+
+# Test the server imports correctly
+python -c "from resume_mcp.server import mcp; print('✅ MCP server ready')"
+```
+
+**Run the MCP server directly (for testing):**
+```bash
+python -m resume_mcp.server
+```
+
+### Integration with AI Clients
+
+After completing the [Installation](#installation) steps, configure your AI client to use the MCP server:
+
+#### Claude Desktop
+
+Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "resume-generator": {
+      "command": "/absolute/path/to/.venv/bin/python",
+      "args": ["-m", "resume_mcp.server"],
+      "cwd": "/absolute/path/to/resume-ats-docx-gen"
+    }
+  }
+}
+```
+
+**⚠️ Important:** Replace both `/absolute/path/to/` placeholders with your actual project path.
+
+#### VS Code GitHub Copilot
+
+The `.vscode/settings.json` file is already configured. Just **restart VS Code** to activate the MCP server.
+
+To manually configure or for user-level settings, add to your VS Code settings:
+
+```json
+{
+  "github.copilot.chat.mcp.servers": {
+    "resume-generator": {
+      "command": "/absolute/path/to/.venv/bin/python",
+      "args": ["-m", "resume_mcp.server"],
+      "cwd": "/absolute/path/to/resume-ats-docx-gen"
+    }
+  }
+}
+```
+
+**Test in VS Code:**
+1. Restart VS Code
+2. Open Copilot Chat (Cmd+I or Ctrl+I)
+3. Try: `@workspace Create a resume for a Python developer and save as test.docx`
+
+### MCP Tools
+
+**`generate_resume`** - Generate DOCX from JSON
+
+```python
+# Example usage from AI agent:
+generate_resume(
+    resume={
+        "header": {"name": "John Doe", "email": "john@example.com"},
+        "skills": {"Languages": ["Python", "JavaScript"]},
+        "experience": [...]
+    },
+    filename="john_doe_resume.docx"
+)
+```
+
+The tool provides:
+- ✅ Strict validation with detailed error messages
+- ✅ Automatic file saving to temp directory
+- ✅ Access to generated files via `outbox://` resources
+
+### MCP Resources
+
+**Templates** - View example resume structures:
+- `template://simple` - Minimal resume example
+- `template://full` - Complete traditional format
+- `template://with-summary` - Resume with professional summary
+
+**Outbox** - Access generated files:
+- `outbox://filename.docx` - Retrieve generated DOCX file
+
+### Error Handling
+
+The MCP server provides detailed, actionable error messages for common issues:
+
+```
+❌ Resume validation failed. Fix the following issues:
+  • header.email: field required
+  • experience[0].bullets: Must provide either 'bullets' or 'subsections'
+
+Review the required schema. Use template:// resources to see valid examples.
+```
+
+### File Location
+
+Generated resumes are saved to: `{temp_dir}/resume-mcp-outbox/`
+
+On macOS/Linux, this is typically: `/tmp/resume-mcp-outbox/`
+
 ## Requirements
 
 - Python 3.8+
 - python-docx >= 0.8.11
 - click >= 8.0.0
+- mcp >= 1.0.0 (for MCP server)
+- pydantic >= 2.0.0 (for MCP server)
 
 ## License
 

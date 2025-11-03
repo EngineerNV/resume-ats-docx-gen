@@ -1,6 +1,7 @@
 """Core resume generation logic using python-docx."""
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -9,6 +10,8 @@ from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT, WD_TAB_ALIGNMENT
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
+
+logger = logging.getLogger(__name__)
 
 
 class ResumeGenerator:
@@ -44,8 +47,7 @@ class ResumeGenerator:
                 return json.load(f)
         except FileNotFoundError:
             # Return default configuration if file not found
-            print(f"⚠️  Warning: Config file not found at {config_path}")
-            print(f"    Using default configuration")
+            logger.warning(f"Config file not found at {config_path}, using default configuration")
             return self._get_default_config()
     
     def _get_default_config(self) -> Dict[str, Any]:
@@ -250,29 +252,36 @@ class ResumeGenerator:
         # Email (clickable)
         if "email" in header_data:
             email = header_data["email"]
-            contact_items.append(("email", email, f"mailto:{email}"))
+            if email:  # Check if not None
+                contact_items.append(("email", email, f"mailto:{email}"))
         
         # Phone (not clickable)
         if "phone" in header_data:
-            contact_items.append(("text", header_data["phone"], None))
+            phone = header_data["phone"]
+            if phone:  # Check if not None
+                contact_items.append(("text", phone, None))
         
         # Location (not clickable)
         if "location" in header_data:
-            contact_items.append(("text", header_data["location"], None))
+            location = header_data["location"]
+            if location:  # Check if not None
+                contact_items.append(("text", location, None))
         
         # LinkedIn (clickable)
         if "linkedin" in header_data:
             linkedin = header_data["linkedin"]
-            # Add https:// if not present
-            url = linkedin if linkedin.startswith("http") else f"https://{linkedin}"
-            contact_items.append(("link", linkedin, url))
+            if linkedin:  # Check if not None
+                # Add https:// if not present
+                url = linkedin if linkedin.startswith("http") else f"https://{linkedin}"
+                contact_items.append(("link", linkedin, url))
         
         # GitHub (clickable)
         if "github" in header_data:
             github = header_data["github"]
-            # Add https:// if not present
-            url = github if github.startswith("http") else f"https://{github}"
-            contact_items.append(("link", github, url))
+            if github:  # Check if not None
+                # Add https:// if not present
+                url = github if github.startswith("http") else f"https://{github}"
+                contact_items.append(("link", github, url))
         
         # Add all contact items with separators
         separator = self.config["formatting"]["contact_separator"]

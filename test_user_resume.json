@@ -1,0 +1,36 @@
+{
+  "header": {
+    "name": "Test User",
+    "email": "test@example.com",
+    "location": "New York, NY",
+    "linkedin": "linkedin.com/in/testuser",
+    "github": "github.com/testuser"
+  },
+  "skills": {
+    "Programming Languages": ["Python", "JavaScript", "TypeScript"],
+    "Technologies": ["React", "Node.js", "Docker"],
+    "Tools": ["Git", "VS Code", "Linux"]
+  },
+  "experience": [
+    {
+      "role": "Software Engineer",
+      "company": "Tech Company",
+      "dates": "Jan 2023 - Present",
+      "location": "New York, NY",
+      "bullets": [
+        "Developed scalable web applications using modern technologies",
+        "Collaborated with cross-functional teams to deliver features",
+        "Improved application performance by 30%"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "degree": "Bachelor of Science in Computer Science",
+      "institution": "University Name",
+      "dates": "2019 - 2023",
+      "location": "New York, NY",
+      "gpa": "3.8/4.0"
+    }
+  ]
+}

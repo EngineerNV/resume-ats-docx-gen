@@ -1,0 +1,17 @@
+{
+	"servers": {
+		"resume-generator": {
+			"command": "${workspaceFolder}/.venv/bin/python",
+			"args": [
+				"-m",
+				"resume_mcp.server"
+			],
+			"cwd": "${workspaceFolder}",
+			"env": {
+				"PYTHONPATH": "${workspaceFolder}"
+			},
+			"type": "stdio"
+		},
+	},
+	"inputs": []
+}

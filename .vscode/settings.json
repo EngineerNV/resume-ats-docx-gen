@@ -1,0 +1,13 @@
+{
+  "github.copilot.chat.mcp.enabled": true,
+  "github.copilot.chat.mcp.servers": {
+    "resume-generator": {
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "args": ["-m", "resume_mcp.server"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    }
+  }
+}
