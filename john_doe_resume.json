@@ -1,0 +1,90 @@
+{
+  "header": {
+    "name": "John Doe",
+    "email": "john.doe@email.com",
+    "location": "San Francisco, CA",
+    "linkedin": "https://www.linkedin.com/in/johndoe/",
+    "github": "https://github.com/johndoe"
+  },
+  "professional_summary": "Results-driven software engineer with 5+ years of experience building scalable enterprise applications. Proven track record of leading platform modernizations, implementing AI solutions, and driving technical innovation that delivers measurable business impact. Passionate about creating efficient, maintainable systems that solve real-world problems.",
+  "skills": {
+    "Programming": "C++/C, Java, Python, Bash, Go, TypeScript, and ARM-MIPS/ARM-Thumb assembly code",
+    "Technical": "Linux, Infrastructure as Code, REST API, JSON, QNX RTOS, Embedded Systems, TCP/IP, AI, Multi-Threading, and Git"
+  },
+  "experience": [
+    {
+      "role": "Full Stack Developer, Staffing Platform",
+      "company": "GlobalTech Solutions",
+      "dates": "May 2024 - August 2025",
+      "location": "San Francisco, CA",
+      "subsections": [
+        {
+          "header": "Platform Modernization and System Migration",
+          "bullets": [
+            "Led migration of enterprise platform (global workforce platform in 150+ countries) from legacy PHP to modern stack: Next.js, React, TypeScript, Prisma, TanStack Query, and TanStack Forms",
+            "Improved dashboard load times by 26% and reduced customer support tickets by 34% through scalable backend/frontend redesigns",
+            "Maintained and supported legacy production system, delivering peer-reviewed hotfixes and compliance updates for international and domestic users"
+          ]
+        },
+        {
+          "header": "AI Integration and Product Innovation",
+          "bullets": [
+            "Revitalized career development platform after 4 years of stalled progress by architecting AWS redesigns and building a Generative AI prototype ($5/month) to replace a $100K vendor proposal",
+            "Guided platform to its first beta launch in May 2025 across 2025 participating companies",
+            "Collaborated with analytics team to launch RAG-driven Generative AI chat features using internal documentation and designed voice-to-action workflows automating AWS Step Functions"
+          ]
+        },
+        {
+          "header": "Security and Infrastructure",
+          "bullets": [
+            "Researched MFA solutions and prototyped authentication flows supporting Twilio-based two-factor authentication, passwordless logins, and modern security standards."
+          ]
+        },
+        {
+          "header": "Organizational Impact",
+          "bullets": [
+            "Partnered with leadership to revamp recruitment processes, standardizing technical evaluations, interview formats, and scoring criteria.",
+            "Achieved 8+ on-site interviews per month and reduced legal/HR risk through consistent hiring practices."
+          ]
+        }
+      ]
+    },
+    {
+      "role": "Software Development Engineer Level 5, Corporate Service Automation",
+      "company": "Cloud Services Inc",
+      "dates": "September 2021 - May 2024",
+      "location": "Seattle, WA",
+      "subsections": [
+        {
+          "header": "Technical Leadership/Skills",
+          "bullets": [
+            "Orchestrated a $113M AWS outage recovery as technical project manager, managing cross-departmental teams",
+            "Led an audit of DPM usage of CFEngine within AWS, reducing violations by 37.5% through improved protocols.",
+            "Spearheaded the design and implementation of a cutting-edge DHCP service using:",
+            "Python serverless technology",
+            "TypeScript Infrastructure as Code",
+            "Multithreaded Go Docker container applications",
+            "Non-SQL records in DynamoDB"
+          ]
+        }
+      ]
+    }
+  ],
+  "education": [
+    {
+      "degree": "Bachelor of Science in Computer Science",
+      "institution": "University of California, Riverside",
+      "dates": "2017 - 2021",
+      "location": "Riverside, CA",
+      "gpa": "3.5/4.0"
+    }
+  ],
+  "awards": [
+    "Dean's List (2018-2020)",
+    {
+      "title": "AWS Bar Raiser Certification",
+      "date": "2023",
+      "description": "Selected to conduct technical interviews and maintain hiring standards"
+    }
+  ]
+}

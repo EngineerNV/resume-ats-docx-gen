@@ -2,7 +2,7 @@
   "header": {
     "name": "John Smith",
     "email": "john@example.com",
-    "phone": "555-0100"
+    "location": "New York, NY"
   },
   "skills": ["Python", "JavaScript", "SQL"],
   "experience": [

@@ -1,0 +1,62 @@
+{
+  "header": {
+    "name": "Jane Smith",
+    "email": "jane.smith@email.com",
+    "location": "Austin, TX",
+    "linkedin": "https://www.linkedin.com/in/janesmith/",
+    "github": "https://github.com/janesmith"
+  },
+  "professional_summary": [
+    "Dynamic product manager with 7+ years of experience driving innovative solutions in the fintech and healthcare sectors. Expert in agile methodologies, cross-functional team leadership, and data-driven decision making.",
+    "Track record of launching 15+ successful products that increased user engagement by 45% and generated $12M in annual revenue. Passionate about leveraging technology to solve complex business challenges and deliver exceptional user experiences."
+  ],
+  "skills": {
+    "Product Management": "Roadmap Planning, User Research, A/B Testing, Analytics, Feature Prioritization",
+    "Tools & Methods": "Jira, Figma, SQL, Google Analytics, Agile/Scrum, OKRs, Product-Market Fit"
+  },
+  "experience": [
+    {
+      "role": "Senior Product Manager",
+      "company": "FinTech Innovations",
+      "dates": "January 2022 - Present",
+      "location": "Austin, TX",
+      "bullets": [
+        "Led product strategy for mobile banking app serving 2.3M active users, resulting in 40% increase in daily engagement",
+        "Launched AI-powered fraud detection feature that reduced chargebacks by 28% and saved $3.5M annually",
+        "Collaborated with engineering, design, and data science teams to ship 12 major features in 18 months",
+        "Conducted user research with 200+ customers to identify pain points and validate product hypotheses"
+      ]
+    },
+    {
+      "role": "Product Manager",
+      "company": "HealthTech Solutions",
+      "dates": "March 2019 - December 2021",
+      "location": "San Francisco, CA",
+      "bullets": [
+        "Managed end-to-end product lifecycle for telehealth platform used by 500+ healthcare providers",
+        "Increased platform adoption by 65% through improved onboarding flow and feature discovery",
+        "Partnered with compliance team to ensure HIPAA compliance across all product features",
+        "Analyzed user behavior data to optimize conversion funnel, improving signup rate by 35%"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "degree": "MBA, Technology Management",
+      "institution": "Stanford Graduate School of Business",
+      "dates": "2017-2019",
+      "location": "Stanford, CA"
+    },
+    {
+      "degree": "BS Computer Science",
+      "institution": "University of Texas at Austin",
+      "dates": "2013-2017",
+      "location": "Austin, TX",
+      "gpa": "3.8/4.0"
+    }
+  ],
+  "awards": [
+    "Product of the Year Award - FinTech Magazine (2023)",
+    "Top 30 Under 30 in Tech - Austin Business Journal (2021)"
+  ]
+}

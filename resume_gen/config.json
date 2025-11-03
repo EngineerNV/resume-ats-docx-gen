@@ -1,0 +1,41 @@
+{
+  "fonts": {
+    "primary": "Calibri",
+    "fallback": "Arial"
+  },
+  "font_sizes": {
+    "body": 11,
+    "name": 16,
+    "section_header": 12
+  },
+  "spacing": {
+    "margin": 36,
+    "header_name_after": 2,
+    "header_contact_after": 8,
+    "section_header_after": 4,
+    "bullet_after": 1,
+    "subsection_header_after": 1,
+    "inter_subsection_spacing": 0,
+    "inter_job_spacing": 4,
+    "skill_category_after": 2,
+    "education_detail_after": 4,
+    "professional_summary_paragraph": 4,
+    "professional_summary_last": 6
+  },
+  "colors": {
+    "text": {
+      "r": 0,
+      "g": 0,
+      "b": 0
+    },
+    "hyperlink": "0563C1"
+  },
+  "formatting": {
+    "underline_name": true,
+    "underline_section_headers": true,
+    "underline_subsection_headers": true,
+    "italic_skills": true,
+    "italic_job_title": true,
+    "contact_separator": " • "
+  }
+}

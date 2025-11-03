@@ -2,7 +2,6 @@
   "header": {
     "name": "Jane Doe",
     "email": "jane.doe@email.com",
-    "phone": "(555) 123-4567",
     "location": "San Francisco, CA",
     "linkedin": "linkedin.com/in/janedoe",
     "github": "github.com/janedoe"
