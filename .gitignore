@@ -210,3 +210,6 @@ __marimo__/
 test_resume.docx
 *.docx
 output/
+
+# MCP server outbox
+outbox/
