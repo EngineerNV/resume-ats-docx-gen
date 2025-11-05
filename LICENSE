@@ -1,21 +1,43 @@
-MIT License
+Nick License v1 (Personal-Use, Non-Commercial, No-AI)
+SPDX-Identifier: Nick-PU-NC-NAI-1.0
 
 Copyright (c) 2025 Nick
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Permission is hereby granted to any individual obtaining a copy of this software
+and associated documentation files (the "Software") to use, copy, modify, and
+create derivative works of the Software for **private, personal, or
+non-commercial academic research purposes only**, subject to the conditions
+listed below.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. **Commercial Use Prohibited.**
+   Any commercial use of the Software, including but not limited to use in any
+   product, service, or work (commercially distributed or internally deployed)
+   that is intended for profit, revenue-generation, commercial advantage,
+   enterprise use, or governmental procurement, is strictly prohibited without
+   express prior written permission from the copyright holder.
+
+2. **Prohibition on Machine Learning, Artificial Intelligence, and Dataset Use.**
+   The Software, including its source code, structure, data representations,
+   documentation, and outputs, may **not** be used to train, fine-tune, or
+   improve machine learning models, artificial intelligence systems, neural
+   networks, large language models, or any automated system that learns from data.
+   The Software may not be included in datasets or corpora intended for such
+   training, nor used as evaluation input for such systems.
+
+3. **Redistribution.**
+   Redistribution of the Software or derivative works must retain the above
+   copyright notice, this license, and all terms herein in all copies or
+   substantial portions of the Software. Redistribution that enables or supports
+   prohibited commercial or AI-related uses is not permitted.
+
+4. **No Waiver.**
+   Failure to enforce any provision of this license shall not be deemed a waiver
+   of enforceability of that or any other provision.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
