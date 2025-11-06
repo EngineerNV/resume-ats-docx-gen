@@ -1,34 +1,35 @@
-# MCP Resume Agent Implementation
+# Filename Agent Implementation
 
 ## Overview
 
-The MCP Resume Agent is a new OpenAI agent added to the workflow that coordinates the handoff between the resume optimization workflow and the MCP server for DOCX generation.
+The Filename Agent (formerly MCP Resume Agent) is an OpenAI agent added to the workflow that intelligently determines filenames for generated DOCX files based on resume content.
 
 ## What It Does
 
-The MCP Resume Agent:
+The Filename Agent:
 
 1. **Reviews the Optimized Resume JSON** - Takes the complete, optimized resume JSON from previous agents
 2. **Determines Intelligent Filenames** - Generates professional, URL-safe filenames based on the candidate's name
    - Format: `firstname_lastname_resume.docx`
    - Example: "Jane Smith" → `jane_smith_resume.docx`
    - Fallback to `resume.docx` if name is missing/invalid
-3. **Prepares MCP Communication** - Structures the data for sending to the MCP server
-4. **Returns Metadata** - Provides reasoning about filename choice and confirms readiness
+3. **Prepares Resume Data** - Ensures the resume data is ready for DOCX generation
+4. **Returns Metadata** - Provides reasoning about filename choice and structured data
 
 ## Architecture Flow
 
-### Before (Without MCP Resume Agent)
-```
-FastAPI → Agent Workflow → JSON → MCP Client (hardcoded "resume.docx") → MCP Server → DOCX
-```
-
-### After (With MCP Resume Agent)
+### Simplified Architecture (Current)
 ```
 FastAPI → Agent Workflow → Optimized JSON 
-  → MCP Resume Agent (determines filename intelligently)
-  → MCP Client → MCP Server → DOCX
+  → Filename Agent (determines filename intelligently)
+  → Direct Generation Tool → DOCX
 ```
+
+**Key Points:**
+- No MCP server communication needed
+- Direct function call to `generate_resume_tool`
+- Simpler, faster, and more reliable
+- Agent focuses solely on intelligent filename generation
 
 ## Agent Prompt
 
@@ -63,30 +64,33 @@ The agent uses the `MCP_RESUME_AGENT_INSTRUCTIONS` prompt which instructs it to:
 
 3. **`api/server.py`**
    - Imported `prepare_resume_for_mcp`
-   - Updated `/api/workflow/docx` endpoint to use MCP Resume Agent
+   - Imported `generate_resume_tool` from `resume_mcp.tools`
+   - Updated `/api/workflow/docx` endpoint to use Filename Agent
    - Agent-determined filename now used in response
+   - Direct generation (no MCP server communication)
 
 ## Usage Example
 
 ```python
 from agents.workflows import prepare_resume_for_mcp
+from resume_mcp.tools import generate_resume_tool
 
 # After getting optimized resume from workflow
 optimized_resume = result.optimized_resume_json.parsed
 
-# Use MCP Resume Agent to prepare for DOCX generation
-mcp_agent_result = prepare_resume_for_mcp(optimized_resume)
+# Use Filename Agent to determine intelligent filename
+filename_agent_result = prepare_resume_for_mcp(optimized_resume)
 
-print(f"Filename: {mcp_agent_result.filename}")
+print(f"Filename: {filename_agent_result.filename}")
 # Output: Filename: jane_smith_resume.docx
 
-print(f"Reasoning: {mcp_agent_result.reasoning}")
+print(f"Reasoning: {filename_agent_result.reasoning}")
 # Output: Reasoning: Generated filename from candidate name 'Jane Smith' following professional naming conventions.
 
-# Send to MCP server
-mcp_result = generate_resume_via_mcp(
-    resume_data=mcp_agent_result.resume_data,
-    filename=mcp_agent_result.filename
+# Generate DOCX directly (no MCP server)
+generation_result = generate_resume_tool(
+    resume_data=filename_agent_result.resume_data,
+    filename=filename_agent_result.filename
 )
 ```
 
@@ -97,11 +101,11 @@ mcp_result = generate_resume_via_mcp(
 3. **Professional Format** - Follows URL-safe, professional naming conventions
 4. **Extensible** - Easy to add more logic (e.g., job title in filename, date stamps, etc.)
 5. **Better Error Messages** - Agent reasoning included in error responses
-6. **Separation of Concerns** - MCP coordination logic is in a dedicated agent
+6. **Simplified Architecture** - Direct generation, no MCP server communication overhead
 
 ## Future Enhancements
 
-Potential improvements to the MCP Resume Agent:
+Potential improvements to the Filename Agent:
 
 - Include job title or company in filename (e.g., `jane_smith_google_swe_resume.docx`)
 - Add timestamp for version tracking
@@ -113,11 +117,33 @@ Potential improvements to the MCP Resume Agent:
 
 Run the test suite:
 ```bash
-python test_mcp_resume_agent.py
+python test_direct_generation.py
 ```
 
 Expected output:
 ```
+======================================================================
+Direct DOCX Generation Test (No MCP Server)
+======================================================================
+
+Step 1: Testing filename agent...
+----------------------------------------------------------------------
+✅ Filename determined: john_doe_resume.docx
+   Reasoning: Generated filename from candidate name.
+
+Step 2: Testing direct generation (no MCP server)...
+----------------------------------------------------------------------
+✅ DOCX generated: /path/to/outbox/john_doe_resume.docx
+   Message: ✅ Resume generated successfully: john_doe_resume.docx
+✅ File verified: /path/to/outbox/john_doe_resume.docx
+
+======================================================================
+✅ All tests passed!
+
+Summary:
+  - Filename agent determines intelligent names
+  - Generation tool called directly (no MCP server)
+  - DOCX file created successfully
 ======================================================================
 MCP Resume Agent Test
 ======================================================================

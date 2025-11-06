@@ -4,7 +4,7 @@ FastAPI server for orchestrating resume generation workflow.
 This server provides REST API endpoints that:
 1. Accept resume and job description data from the frontend
 2. Orchestrate the OpenAI agent workflow for resume optimization
-3. Communicate with a running MCP server to generate DOCX files
+3. Generate DOCX files directly using the resume generator
 4. Return JSON suggestions or DOCX downloads to the frontend
 """
 
@@ -17,7 +17,7 @@ import tempfile
 from pathlib import Path
 
 from agents.workflows import ResumeJsonWorkflow, prepare_resume_for_mcp
-from api.mcp_client import generate_resume_via_mcp
+from resume_mcp.tools import generate_resume_tool
 
 app = FastAPI(
     title="Resume ATS DOCX Generator API",
@@ -180,8 +180,9 @@ async def workflow_docx(
     
     This endpoint orchestrates the full workflow:
     1. Runs the OpenAI agent workflow to generate optimized resume JSON
-    2. Communicates with the MCP server via MCP client to convert JSON to DOCX
-    3. Returns the DOCX file for download
+    2. Uses filename agent to determine intelligent filename
+    3. Generates DOCX directly using the resume generator
+    4. Returns the DOCX file for download
     
     Args:
         mode: Workflow mode ('resume' for improvement, 'job' for job tuning)
@@ -245,35 +246,35 @@ async def workflow_docx(
         # Get the optimized resume JSON
         optimized_resume = result.optimized_resume_json.parsed
         
-        # Use the MCP Resume Agent to determine filename and prepare for MCP server
-        # This agent reviews the resume and intelligently names the file
-        mcp_agent_result = prepare_resume_for_mcp(optimized_resume)
+        # Use the filename agent to determine intelligent filename
+        # This agent reviews the resume and generates a professional filename
+        filename_agent_result = prepare_resume_for_mcp(optimized_resume)
         
-        # Use the filename and resume data determined by the agent
-        filename = mcp_agent_result.filename
-        resume_data_for_mcp = mcp_agent_result.resume_data
+        # Use the filename determined by the agent
+        filename = filename_agent_result.filename
+        resume_data = filename_agent_result.resume_data
         
-        # Communicate with the MCP server to generate DOCX
-        # The MCP server should be running as part of the project setup
-        mcp_result = generate_resume_via_mcp(
-            resume_data=resume_data_for_mcp,
+        # Generate DOCX directly using the generation tool
+        # No MCP server communication needed - direct function call
+        generation_result = generate_resume_tool(
+            resume_data=resume_data,
             filename=filename
         )
         
-        if not mcp_result["success"]:
+        if not generation_result["success"]:
             return JSONResponse(
                 status_code=500,
                 content={
                     "ok": False,
                     "code": "DOCX_GENERATION_ERROR",
-                    "message": mcp_result["message"],
-                    "details": mcp_result.get("details", ""),
-                    "agent_reasoning": mcp_agent_result.reasoning,
+                    "message": generation_result["message"],
+                    "details": generation_result.get("details", ""),
+                    "agent_reasoning": filename_agent_result.reasoning,
                 }
             )
         
         # Return the generated DOCX file with the agent-determined filename
-        docx_path = Path(mcp_result["path"])
+        docx_path = Path(generation_result["path"])
         if not docx_path.exists():
             return JSONResponse(
                 status_code=500,
@@ -281,7 +282,7 @@ async def workflow_docx(
                     "ok": False,
                     "code": "FILE_NOT_FOUND",
                     "message": "Generated DOCX file not found",
-                    "agent_reasoning": mcp_agent_result.reasoning,
+                    "agent_reasoning": filename_agent_result.reasoning,
                 }
             )
         
