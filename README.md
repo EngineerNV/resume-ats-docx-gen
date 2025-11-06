@@ -2,6 +2,14 @@
 
 A Python CLI tool that generates ATS-friendly resumes in DOCX format from JSON input.
 
+## Architecture Overview
+
+This repository provides three main components:
+
+1. **CLI Tool** (`resume-gen`): Generate DOCX files directly from JSON
+2. **MCP Server** (`resume-mcp`): Model Context Protocol server for AI agent integration
+3. **FastAPI Server** (`resume-api`): REST API for frontend integration with AI agent workflows
+
 ## Frontend UI (Beta)
 
 The repository now includes a Next.js App Router frontend (`frontend/`) that collects resume inputs, supports job-tuning context, and proxies requests to the workflow APIs. See [`frontend/README.md`](frontend/README.md) for setup instructions.
@@ -34,8 +42,12 @@ source .venv/bin/activate  # macOS/Linux
 # or
 .venv\Scripts\activate     # Windows
 
-# Install the package with MCP server support
+# Install the package with all dependencies
 pip install -e .
+
+# Configure your OpenAI API key
+cp .env.example .env
+# Edit .env and add your OPENAI_API_KEY
 ```
 
 ### 2. Verify Installation
@@ -46,15 +58,52 @@ resume-gen --help
 
 # Test the MCP server imports correctly
 python -c "from resume_mcp.server import mcp; print('✅ MCP server ready')"
+
+# Test the API server
+python test_api_integration.py
 ```
 
-## Usage
+## Quick Start
+
+### Option 1: CLI Tool (Direct JSON to DOCX)
 
 Generate a resume from a JSON file:
 
 ```bash
 resume-gen render --in draft.json --out resume.docx
 ```
+
+### Option 2: FastAPI Server (Frontend Integration)
+
+Start the API server for frontend integration:
+
+```bash
+# Start the FastAPI server
+resume-api
+
+# Or with auto-reload for development
+uvicorn api.server:app --reload
+```
+
+The server will be available at `http://localhost:8000`
+
+**API Endpoints:**
+- `POST /api/workflow/json` - Get AI-optimized resume JSON suggestions
+- `POST /api/workflow/docx` - Generate and download optimized DOCX resume
+
+See [`api/README.md`](api/README.md) for detailed API documentation.
+
+### Option 3: MCP Server (AI Agent Integration)
+
+Run the MCP server for AI agent tools:
+
+```bash
+python -m resume_mcp.server
+```
+
+Configure your AI client (Claude, VS Code Copilot) to use the MCP server. See [MCP Server](#mcp-server) section below for details.
+
+## Command Line Usage
 
 ### Command Options
 
@@ -353,7 +402,48 @@ On macOS/Linux, this is typically: `/tmp/resume-mcp-outbox/`
 - python-docx >= 0.8.11
 - click >= 8.0.0
 - mcp >= 1.0.0 (for MCP server)
-- pydantic >= 2.0.0 (for MCP server)
+- pydantic >= 2.0.0 (for validation)
+- fastapi >= 0.100.0 (for API server)
+- uvicorn >= 0.23.0 (for API server)
+- openai >= 1.0.0 (for agent workflows)
+
+All dependencies are automatically installed with `pip install -e .`
+
+## FastAPI Server
+
+The FastAPI server provides REST API endpoints for frontend integration. It orchestrates:
+
+1. **Agent Workflows**: Uses OpenAI agents to optimize resumes based on job descriptions or general improvement
+2. **MCP Integration**: Converts optimized JSON to DOCX using the MCP server tools
+3. **CORS Support**: Configured for local frontend development
+
+### Starting the Server
+
+```bash
+# Using the CLI command
+resume-api
+
+# Or with auto-reload for development
+uvicorn api.server:app --reload --port 8000
+```
+
+### API Documentation
+
+Once the server is running, visit:
+- Interactive API docs: `http://localhost:8000/docs`
+- Alternative docs: `http://localhost:8000/redoc`
+
+For detailed API documentation, see [`api/README.md`](api/README.md)
+
+### Integration with Frontend
+
+Configure your frontend `.env.local`:
+
+```bash
+USE_MOCK=false
+PY_WORKFLOW_JSON_URL=http://localhost:8000/api/workflow/json
+PY_WORKFLOW_DOCX_URL=http://localhost:8000/api/workflow/docx
+```
 
 ## License
 
