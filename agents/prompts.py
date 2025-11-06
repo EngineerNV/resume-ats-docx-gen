@@ -499,7 +499,7 @@ Persist until all input is mapped, transformed, or defaulted according to the sc
 
 ---
 
-## Resumé JSON Schema (required fields and structure)
+## Resume JSON Schema (required fields and structure)
 
 [Insert the exact full schema as you provided here for easy model reference.]
 
