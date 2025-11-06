@@ -62,7 +62,7 @@ export function validateState(state: FormState) {
 }
 
 export function remainingCharacters(value: string): number {
-  return MAX_TEXTAREA_LENGTH - value.length;
+  return Math.max(0, MAX_TEXTAREA_LENGTH - value.length);
 }
 
 export function totalLimitForLabel(files: UploadedFile[]): string {
