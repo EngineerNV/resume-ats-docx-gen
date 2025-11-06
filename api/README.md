@@ -119,20 +119,28 @@ PY_WORKFLOW_DOCX_URL=http://localhost:8000/api/workflow/docx
 
 ## MCP Server Integration
 
-The FastAPI server integrates with the MCP server by calling the MCP tool functions directly:
+The FastAPI server integrates with the MCP server via the MCP protocol:
 
 1. Using `agents.workflows.ResumeJsonWorkflow` to run the OpenAI agent workflow
-2. Calling `resume_mcp.tools.generate_resume_tool` to convert optimized JSON to DOCX
-3. The MCP tool saves files to the `outbox/` directory
-4. The API returns the generated DOCX file to the client
+2. The workflow generates optimized resume JSON
+3. An MCP client (`api.mcp_client.MCPResumeClient`) spawns the MCP server process
+4. The client communicates with the server via stdio transport using the MCP protocol
+5. The MCP server's `generate_resume` tool converts JSON to DOCX
+6. The MCP server saves the file to the `outbox/` directory
+7. The API retrieves the file path and returns the DOCX to the frontend
 
-**Design Note**: The MCP server does not need to be running as a separate process. The FastAPI server calls the MCP tool functions directly as a Python library. This design:
-- Simplifies deployment (single process)
-- Reduces latency (no network/IPC overhead)
-- Improves reliability (no separate process management)
-- Maintains the same tool interface for AI agents
+**Architecture:**
+```
+FastAPI → Agent Workflow → Optimized JSON → MCP Client → MCP Server → DOCX
+```
 
-The standalone MCP server (`resume-mcp`) is still available for integration with AI clients like Claude Desktop or VS Code Copilot, which connect via the MCP protocol.
+The MCP client automatically spawns an MCP server process when needed and communicates with it using the Model Context Protocol. This ensures proper separation between the API layer and the resume generation service.
+
+**Benefits of MCP Protocol Integration:**
+- Proper client-server architecture with MCP protocol
+- MCP server can be independently developed and tested
+- Enables future scaling (server could run on separate infrastructure)
+- Maintains protocol standards for AI agent integration
 
 ## Error Handling
 

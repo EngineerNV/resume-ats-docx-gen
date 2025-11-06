@@ -23,12 +23,12 @@ A REST API server that:
 
 ### 2. MCP Integration
 
-The FastAPI server integrates with the MCP server by:
-- ✅ Calling `resume_mcp.tools.generate_resume_tool` directly as Python functions
-- ✅ No separate MCP server process needed for API integration
-- ✅ Maintains the same tool interface for consistency
-- ✅ Simplifies deployment (single process)
-- ✅ Reduces latency (no network/IPC overhead)
+The FastAPI server integrates with the MCP server via MCP protocol:
+- ✅ Uses `api.mcp_client.MCPResumeClient` to communicate with MCP server
+- ✅ MCP client spawns MCP server process on demand
+- ✅ Communication via stdio transport using MCP protocol
+- ✅ Proper client-server architecture maintained
+- ✅ Enables independent scaling and development
 
 ### 3. Agent Workflow Orchestration
 
@@ -97,25 +97,21 @@ Response (JSON or DOCX file)
 
 ### MCP Integration Design
 
-The implementation takes a **pragmatic approach** to MCP integration:
+The implementation uses **MCP protocol communication**:
 
-**Direct Function Calls** (Current Implementation):
-- FastAPI server calls MCP tool functions directly
-- Tools are imported as Python modules
-- No separate server process needed
-- Simpler deployment and testing
+**Current Implementation:**
+- FastAPI server uses `api.mcp_client.MCPResumeClient`
+- MCP client spawns MCP server as subprocess
+- Communication via stdio transport (MCP protocol)
+- Agent workflow → JSON → MCP Client → MCP Server → DOCX
+- Proper separation of concerns
 
-**Alternative (Not Implemented):**
-- Could run MCP server as separate process
-- FastAPI would connect via MCP protocol
-- More complex but allows independent scaling
-
-The direct function call approach was chosen because:
-1. Simpler for local development (single process)
-2. More reliable (no network dependencies)
-3. Easier to debug and test
-4. Same tool interface maintained
-5. Standalone MCP server still available for AI clients
+**Benefits:**
+1. Protocol-based communication (not direct function calls)
+2. MCP server runs as independent process
+3. Can scale independently if needed
+4. Maintains MCP standards for AI agent integration
+5. Better separation between API and generation layers
 
 ## Usage
 

@@ -31,17 +31,29 @@
 │  │                                                           │   │
 │  └───────────────────────┬─────────────────────────────────┘   │
 │                          │                                       │
-│                          │ Call tool function                    │
+│                          │ Pass JSON to MCP Client               │
 │                          │                                       │
 │  ┌───────────────────────▼─────────────────────────────────┐   │
-│  │            MCP Server Tool Integration                   │   │
+│  │              MCP Client (api.mcp_client)                 │   │
 │  │                                                           │   │
-│  │  - generate_resume_tool(resume_json, filename)          │   │
-│  │  - Validates resume JSON with Pydantic                  │   │
-│  │  - Generates DOCX using python-docx                     │   │
-│  │  - Saves to outbox/ directory                           │   │
+│  │  - Spawns MCP server subprocess                          │   │
+│  │  - Communicates via stdio (MCP protocol)                │   │
+│  │  - Calls generate_resume tool on server                 │   │
 │  │                                                           │   │
-│  └───────────────────────────────────────────────────────────┘   │
+│  └───────────────────────┬─────────────────────────────────┘   │
+└──────────────────────────┼───────────────────────────────────────┘
+                           │ MCP Protocol (stdio)
+                           │
+┌──────────────────────────▼───────────────────────────────────────┐
+│                    MCP Server Process                             │
+│                  (resume_mcp.server)                              │
+│                                                                   │
+│  - Receives tool call via MCP protocol                           │
+│  - Validates resume JSON with Pydantic                           │
+│  - Generates DOCX using python-docx                              │
+│  - Saves to outbox/ directory                                    │
+│  - Returns result via MCP protocol                               │
+│                                                                   │
 └───────────────────────────────────────────────────────────────────┘
 ```
 
@@ -72,28 +84,42 @@ The workflow orchestrates multiple OpenAI agents:
 - **Resume JSON Builder**: Creates structured resume JSON
 - **Judge for Improvement**: Final optimization pass
 
-### 2. FastAPI Server → MCP Server Tools
+### 2. FastAPI Server → MCP Client → MCP Server
 
-**File**: `api/server.py`
+**File**: `api/server.py` and `api/mcp_client.py`
 
 ```python
-from resume_mcp.tools import generate_resume_tool
+from api.mcp_client import generate_resume_via_mcp
 
-mcp_result = generate_resume_tool(
+# The MCP client spawns an MCP server subprocess and communicates via MCP protocol
+mcp_result = generate_resume_via_mcp(
     resume_data=optimized_resume,
     filename="resume.docx"
 )
 ```
 
-The MCP tool provides:
-- Strict Pydantic validation of resume JSON
-- Professional DOCX generation with ATS optimization
-- Error handling with detailed messages
-- File output to `outbox/` directory
+**MCP Client** (`api/mcp_client.py`):
+- Spawns MCP server as subprocess using `python -m resume_mcp.server`
+- Establishes stdio transport connection
+- Sends MCP protocol messages (tool calls)
+- Receives responses from MCP server
+- Handles errors and connection management
 
-**Design Decision**: The FastAPI server calls MCP tools directly as Python functions rather than connecting to a separate MCP server process. This simplifies deployment while maintaining the same tool interface.
+**MCP Server** (`resume_mcp/server.py`):
+- Runs as independent process
+- Listens on stdio for MCP protocol messages
+- Exposes `generate_resume` tool
+- Validates resume JSON with Pydantic
+- Generates DOCX using python-docx
+- Returns results via MCP protocol
 
-### 3. Standalone MCP Server (Optional)
+**Benefits**:
+- Proper client-server architecture
+- Protocol-based communication (not direct function calls)
+- MCP server can be independently scaled or deployed
+- Maintains MCP standards for AI agent integration
+
+### 3. Standalone MCP Server Usage
 
 **File**: `resume_mcp/server.py`
 

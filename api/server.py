@@ -4,7 +4,7 @@ FastAPI server for orchestrating resume generation workflow.
 This server provides REST API endpoints that:
 1. Accept resume and job description data from the frontend
 2. Orchestrate the OpenAI agent workflow for resume optimization
-3. Use the MCP server to generate DOCX files
+3. Communicate with a running MCP server to generate DOCX files
 4. Return JSON suggestions or DOCX downloads to the frontend
 """
 
@@ -17,7 +17,7 @@ import tempfile
 from pathlib import Path
 
 from agents.workflows import ResumeJsonWorkflow
-from resume_mcp.tools import generate_resume_tool
+from api.mcp_client import generate_resume_via_mcp
 
 app = FastAPI(
     title="Resume ATS DOCX Generator API",
@@ -180,7 +180,7 @@ async def workflow_docx(
     
     This endpoint orchestrates the full workflow:
     1. Runs the OpenAI agent workflow to generate optimized resume JSON
-    2. Uses the MCP server to convert JSON to DOCX format
+    2. Communicates with the MCP server via MCP client to convert JSON to DOCX
     3. Returns the DOCX file for download
     
     Args:
@@ -245,10 +245,10 @@ async def workflow_docx(
         # Get the optimized resume JSON
         optimized_resume = result.optimized_resume_json.parsed
         
-        # Use MCP server to generate DOCX
-        # The MCP server tool will save to the outbox directory
+        # Use MCP client to communicate with the MCP server to generate DOCX
+        # This spawns the MCP server process and calls its generate_resume tool
         filename = "resume.docx"
-        mcp_result = generate_resume_tool(
+        mcp_result = generate_resume_via_mcp(
             resume_data=optimized_resume,
             filename=filename
         )
