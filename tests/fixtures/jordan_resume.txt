@@ -1,0 +1,50 @@
+Jordan M. Reynolds
+Email: jordan.reynolds@example.com
+Phone: (555) 123-8472
+Location: Cambridge, MA
+LinkedIn: linkedin.com/in/jordanreynolds
+GitHub: github.com/jreynolds-dev
+
+Professional Summary
+Motivated Software Engineer with a strong foundation in computer science and hands-on experience building scalable backend systems and user-focused product features. Passionate about distributed systems, developer tooling, and creating efficient engineering workflows. Proven ability to collaborate across teams and deliver production-quality code.
+
+Education
+Harvard University — B.S. Computer Science
+Graduation: May 2025
+Coursework: Data Structures & Algorithms, Operating Systems, Distributed Systems, Web Systems, Machine Learning
+Activities: Harvard Computer Society, HackHarvard Organizer
+
+Technical Skills
+Languages: Python, Go, JavaScript (Node.js + React), Java, C++
+Frameworks/Tools: React, Express, Flask, Docker, Kubernetes, GraphQL, gRPC
+Databases: PostgreSQL, Redis, MongoDB
+Cloud: GCP, AWS (EC2, S3, Lambda)
+
+Experience
+Google — Software Engineering Intern
+Mountain View, CA | Summer 2024
+- Built internal API endpoints in Go for a new developer telemetry service, reducing data retrieval latency by ~30%.
+- Implemented structured logging and instrumentation to improve debugging and performance monitoring across microservices.
+- Collaborated with security and infrastructure teams to ensure compliance with internal API governance standards.
+
+Meta (Facebook) — Software Engineering Intern
+Menlo Park, CA | Summer 2023
+- Developed React components for internal data visualization dashboards used by product insights analysts.
+- Added new caching layer to Python backend service, improving throughput and decreasing server costs.
+- Participated in weekly code reviews, sprint planning, and feature rollout support.
+
+Harvard University — Teaching Assistant, CS50: Introduction to Computer Science
+Cambridge, MA | 2022 – 2024
+- Led weekly lab sessions and office hours to support 200+ students learning foundational programming concepts.
+- Reviewed student submissions, provided debugging guidance, and contributed to exam question development.
+
+Projects
+Distributed Key-Value Store (Go)
+- Implemented leader election and replication using Raft consensus protocol to ensure fault tolerance.
+
+Campus Dining Ratings App (React + Node.js)
+- Designed full-stack system for student-generated dining hall reviews and meal recommendations.
+
+Additional
+Hackathons: HackMIT (Finalist 2023), TechTogether Boston
+Interests: rock climbing, cooking ramen, keyboard mechanical switches nerd :)
