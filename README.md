@@ -6,6 +6,20 @@ A Python CLI tool that generates ATS-friendly resumes in DOCX format from JSON i
 
 The repository now includes a Next.js App Router frontend (`frontend/`) that collects resume inputs, supports job-tuning context, and proxies requests to the workflow APIs. See [`frontend/README.md`](frontend/README.md) for setup instructions.
 
+## Backend API
+
+A FastAPI backend server (`backend/`) provides REST API endpoints for resume generation and AI-powered suggestions. The backend integrates with the frontend to provide a complete local development workflow. See [`backend/README.md`](backend/README.md) for setup instructions.
+
+**Quick Start:**
+```bash
+# Start the backend API server
+python -m backend.main
+
+# In another terminal, start the frontend
+cd frontend
+npm run dev
+```
+
 ## Features
 
 - **ATS-Optimized Format**: Single column layout optimized for Applicant Tracking Systems

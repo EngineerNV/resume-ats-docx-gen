@@ -71,6 +71,8 @@ export default function HomePage() {
   const [loadingAction, setLoadingAction] = useState<'json' | 'docx' | null>(null);
   const [jsonResult, setJsonResult] = useState<SuggestionPayload | null>(null);
   const [docxPreviewUrl, setDocxPreviewUrl] = useState<string | null>(null);
+  const [docxFilePath, setDocxFilePath] = useState<string | null>(null);
+  const [docxOutputDir, setDocxOutputDir] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const docxBlobRef = useRef<Blob | null>(null);
   const createIdempotencyKey = () =>
@@ -188,6 +190,8 @@ export default function HomePage() {
       setDocxPreviewUrl(null);
     }
     docxBlobRef.current = null;
+    setDocxFilePath(null);
+    setDocxOutputDir(null);
   };
 
   const resetAbort = () => {
@@ -302,8 +306,15 @@ export default function HomePage() {
       docxBlobRef.current = blob;
       const objectUrl = URL.createObjectURL(blob);
       setDocxPreviewUrl(objectUrl);
+      
+      // Extract file path information from response headers
+      const filePath = response.headers.get('X-File-Path');
+      const outputDir = response.headers.get('X-Output-Directory');
+      if (filePath) setDocxFilePath(filePath);
+      if (outputDir) setDocxOutputDir(outputDir);
+      
       downloadBlobAsFile(blob, 'resume.docx');
-      setStatus({ type: 'success', message: 'DOCX downloaded. You can also open a preview.' });
+      setStatus({ type: 'success', message: 'DOCX downloaded successfully!' });
     } catch (error) {
       if ((error as DOMException).name === 'AbortError') {
         setStatus({ type: 'info', message: 'Request cancelled.' });
@@ -522,26 +533,65 @@ export default function HomePage() {
             )}
 
             {docxPreviewUrl && (
-              <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">DOCX ready</h3>
-                <p className="text-sm text-slate-600 dark:text-slate-300">
-                  Your download started automatically. You can re-download or open the generated document in a new tab.
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={() => docxBlobRef.current && downloadBlobAsFile(docxBlobRef.current, 'resume.docx')}
-                    className="rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950"
-                  >
-                    Download again
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => docxBlobRef.current && openBlobInNewTab(docxBlobRef.current)}
-                    className="rounded-full border border-brand px-5 py-2 text-sm font-semibold text-brand hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-brand-dark dark:focus-visible:ring-offset-slate-950"
-                  >
-                    Open preview
-                  </button>
+              <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Resume Generated</h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    Your resume has been generated and downloaded automatically.
+                  </p>
+                </div>
+                
+                {(docxFilePath || docxOutputDir) && (
+                  <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-950/50">
+                    <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      File Location
+                    </h4>
+                    {docxFilePath && (
+                      <div className="mb-2">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Full path:</p>
+                        <p className="font-mono text-sm text-slate-700 dark:text-slate-200 break-all">
+                          {docxFilePath}
+                        </p>
+                      </div>
+                    )}
+                    {docxOutputDir && (
+                      <div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Output directory:</p>
+                        <p className="font-mono text-sm text-slate-700 dark:text-slate-200 break-all">
+                          {docxOutputDir}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                <div className="space-y-3">
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    <strong>Note:</strong> DOCX files cannot be previewed directly in the browser. You can download the file and open it with Microsoft Word, Google Docs, or any compatible word processor to view your resume.
+                  </p>
+                  
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => docxBlobRef.current && downloadBlobAsFile(docxBlobRef.current, 'resume.docx')}
+                      className="rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950"
+                    >
+                      Download again
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (docxFilePath && navigator.clipboard) {
+                          navigator.clipboard.writeText(docxFilePath);
+                          setStatus({ type: 'success', message: 'File path copied to clipboard!' });
+                        }
+                      }}
+                      className="rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                      disabled={!docxFilePath}
+                    >
+                      Copy file path
+                    </button>
+                  </div>
                 </div>
               </section>
             )}
