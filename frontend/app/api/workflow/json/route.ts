@@ -35,8 +35,8 @@ function toProxyFormData(data: ValidatedFormData) {
   formData.set('resumeText', data.resumeText ?? '');
   formData.set('context', data.context ?? '');
   formData.set('jobDescriptionText', data.jobDescriptionText ?? '');
-  data.resumeFiles.forEach((file) => formData.append('resumeFiles', file, (file as any).name ?? 'resume')); 
-  data.jobDescriptionFiles.forEach((file) => formData.append('jobDescriptionFiles', file, (file as any).name ?? 'job'));
+  data.resumeFiles.forEach((file) => formData.append('resumeFiles', file, isFile(file) ? file.name : 'resume'));
+  data.jobDescriptionFiles.forEach((file) => formData.append('jobDescriptionFiles', file, isFile(file) ? file.name : 'job'));
   return formData;
 }
 
