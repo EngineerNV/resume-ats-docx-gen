@@ -15,6 +15,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!frontend/lib/
 lib64/
 parts/
 sdist/
@@ -209,6 +210,7 @@ __marimo__/
 # Generated test files
 test_resume.docx
 *.docx
+!frontend/public/mock.docx
 output/
 
 # Generated workflow artifacts
