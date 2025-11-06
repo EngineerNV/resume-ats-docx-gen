@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
-import { formDataSchema, ValidatedFormData } from '../../../../lib/schema';
+import { formDataSchema, ValidatedFormData, NamedBlob } from '../../../../lib/schema';
 
 export const runtime = 'nodejs';
 
@@ -148,14 +148,14 @@ async function createMockDocx(data: ValidatedFormData) {
     data.resumeFiles.length === 0
       ? [new Paragraph({ text: 'None provided', bullet: { level: 0 } })]
       : data.resumeFiles.map(
-          (file) => new Paragraph({ text: (file as any).name ?? 'unnamed file', bullet: { level: 0 } })
+          (file) => new Paragraph({ text: (file as NamedBlob).name ?? 'unnamed file', bullet: { level: 0 } })
         );
 
   const jobFileParagraphs =
     data.jobDescriptionFiles.length === 0
       ? [new Paragraph({ text: 'None provided', bullet: { level: 0 } })]
       : data.jobDescriptionFiles.map(
-          (file) => new Paragraph({ text: (file as any).name ?? 'unnamed file', bullet: { level: 0 } })
+          (file) => new Paragraph({ text: (file as NamedBlob).name ?? 'unnamed file', bullet: { level: 0 } })
         );
 
   const doc = new Document({
