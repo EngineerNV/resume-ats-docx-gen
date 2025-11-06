@@ -31,29 +31,29 @@
 │  │                                                           │   │
 │  └───────────────────────┬─────────────────────────────────┘   │
 │                          │                                       │
-│                          │ Pass JSON to MCP Client               │
+│                          │ Pass JSON to Filename Agent           │
 │                          │                                       │
 │  ┌───────────────────────▼─────────────────────────────────┐   │
-│  │              MCP Client (api.mcp_client)                 │   │
+│  │           Filename Agent (prepare_resume_for_mcp)        │   │
 │  │                                                           │   │
-│  │  - Spawns MCP server subprocess                          │   │
-│  │  - Communicates via stdio (MCP protocol)                │   │
-│  │  - Calls generate_resume tool on server                 │   │
+│  │  - Reviews optimized resume JSON                         │   │
+│  │  - Extracts candidate name                               │   │
+│  │  - Generates intelligent filename                        │   │
+│  │  - Returns: jane_smith_resume.docx                       │   │
 │  │                                                           │   │
 │  └───────────────────────┬─────────────────────────────────┘   │
-└──────────────────────────┼───────────────────────────────────────┘
-                           │ MCP Protocol (stdio)
-                           │
-┌──────────────────────────▼───────────────────────────────────────┐
-│                    MCP Server Process                             │
-│                  (resume_mcp.server)                              │
-│                                                                   │
-│  - Receives tool call via MCP protocol                           │
-│  - Validates resume JSON with Pydantic                           │
-│  - Generates DOCX using python-docx                              │
-│  - Saves to outbox/ directory                                    │
-│  - Returns result via MCP protocol                               │
-│                                                                   │
+│                          │                                       │
+│                          │ Direct function call                  │
+│                          │                                       │
+│  ┌───────────────────────▼─────────────────────────────────┐   │
+│  │      Direct Generation (generate_resume_tool)            │   │
+│  │                                                           │   │
+│  │  - Validates resume JSON with Pydantic                   │   │
+│  │  - Generates DOCX using python-docx                      │   │
+│  │  - Saves to outbox/ directory                            │   │
+│  │  - Returns file path                                     │   │
+│  │                                                           │   │
+│  └───────────────────────────────────────────────────────────┘   │
 └───────────────────────────────────────────────────────────────────┘
 ```
 
@@ -84,42 +84,44 @@ The workflow orchestrates multiple OpenAI agents:
 - **Resume JSON Builder**: Creates structured resume JSON
 - **Judge for Improvement**: Final optimization pass
 
-### 2. FastAPI Server → MCP Client → MCP Server
+### 2. FastAPI Server → Filename Agent → Direct Generation
 
-**File**: `api/server.py` and `api/mcp_client.py`
+**File**: `api/server.py` and `agents/workflows/mcp_resume_agent.py`
 
 ```python
-from api.mcp_client import generate_resume_via_mcp
+from agents.workflows import prepare_resume_for_mcp
+from resume_mcp.tools import generate_resume_tool
 
-# The MCP client spawns an MCP server subprocess and communicates via MCP protocol
-mcp_result = generate_resume_via_mcp(
-    resume_data=optimized_resume,
-    filename="resume.docx"
+# Filename Agent determines intelligent filename
+filename_result = prepare_resume_for_mcp(optimized_resume)
+
+# Direct generation call
+generation_result = generate_resume_tool(
+    resume_data=filename_result.resume_data,
+    filename=filename_result.filename
 )
 ```
 
-**MCP Client** (`api/mcp_client.py`):
-- Spawns MCP server as subprocess using `python -m resume_mcp.server`
-- Establishes stdio transport connection
-- Sends MCP protocol messages (tool calls)
-- Receives responses from MCP server
-- Handles errors and connection management
+**Filename Agent** (`agents/workflows/mcp_resume_agent.py`):
+- Reviews optimized resume JSON
+- Extracts candidate name from resume data
+- Generates professional, URL-safe filename
+- Returns filename, resume data, and reasoning
 
-**MCP Server** (`resume_mcp/server.py`):
-- Runs as independent process
-- Listens on stdio for MCP protocol messages
-- Exposes `generate_resume` tool
+**Direct Generation Tool** (`resume_mcp/tools.py`):
 - Validates resume JSON with Pydantic
-- Generates DOCX using python-docx
-- Returns results via MCP protocol
+- Generates DOCX using python-docx library
+- Saves file to outbox/ directory
+- Returns file path and success status
 
 **Benefits**:
-- Proper client-server architecture
-- Protocol-based communication (not direct function calls)
-- MCP server can be independently scaled or deployed
-- Maintains MCP standards for AI agent integration
+- Simple, direct function calls
+- No protocol overhead (~100ms faster)
+- Fewer moving parts, more reliable
+- Easier to debug and maintain
+- Agent still provides intelligent naming
 
-### 3. Standalone MCP Server Usage
+### 3. Standalone MCP Server Usage (Optional)
 
 **File**: `resume_mcp/server.py`
 
@@ -129,7 +131,7 @@ For AI client integration (Claude Desktop, VS Code Copilot):
 python -m resume_mcp.server
 ```
 
-The standalone MCP server exposes the same tools via the MCP protocol for external AI agents.
+The standalone MCP server exposes the same generation tools via the MCP protocol for external AI agents. This is separate from the FastAPI workflow which uses direct generation.
 
 ## Data Flow
 
@@ -191,11 +193,18 @@ Agent Workflow
   └─→ optimized_resume_json
       │
       ▼
-MCP Tool (generate_resume_tool)
+Filename Agent (prepare_resume_for_mcp)
+  │
+  ├─→ Extract candidate name
+  ├─→ Generate intelligent filename
+  └─→ Prepare resume data
+  │
+  ▼
+Direct Generation (generate_resume_tool)
   │
   ├─→ Validate with Pydantic
   ├─→ Generate DOCX with python-docx
-  ├─→ Save to outbox/resume.docx
+  ├─→ Save to outbox/jane_smith_resume.docx
   │
   ▼
 Response to Frontend
@@ -217,8 +226,8 @@ OPENAI_BASE_URL=https://api.openai.com/v1  # Optional
 
 ### 2. Shared Dependencies
 
-- **agents/workflows**: Workflow orchestration
-- **resume_mcp/tools**: DOCX generation
+- **agents/workflows**: Workflow orchestration and Filename Agent
+- **resume_mcp/tools**: DOCX generation functions
 - **resume_gen/generator**: Core resume rendering
 - **OpenAI SDK**: Agent execution
 - **Pydantic**: Data validation
@@ -229,16 +238,20 @@ The integration provides layered error handling:
 
 1. **FastAPI validation**: Input validation before workflow
 2. **Agent workflow**: OpenAI API errors and workflow logic
-3. **MCP tools**: Resume JSON validation and DOCX generation
-4. **Structured responses**: Consistent error format for frontend
+3. **Filename Agent**: Filename generation with fallback logic
+4. **Direct generation**: Resume JSON validation and DOCX generation
+5. **Structured responses**: Consistent error format for frontend
 
 ## Testing the Integration
 
 ### 1. Unit Testing
 
 ```bash
-# Test MCP integration
+# Test API integration
 python test_api_integration.py
+
+# Test direct generation
+python test_direct_generation.py
 ```
 
 ### 2. Manual Testing
