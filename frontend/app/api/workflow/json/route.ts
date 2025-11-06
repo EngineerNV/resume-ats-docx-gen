@@ -128,7 +128,7 @@ export async function POST(request: Request) {
     }
 
     const payload = await response.json();
-    return NextResponse.json({ ok: true, data: payload }, { status: 200 });
+    return NextResponse.json(payload, { status: 200 });
   } catch (error) {
     return NextResponse.json(
       { ok: false, code: 'NETWORK_ERROR', message: 'Failed to reach workflow service.' },
