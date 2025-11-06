@@ -6,14 +6,6 @@ import json
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional
 
-try:  # pragma: no cover - import guard for offline runs
-    from openai import OpenAI
-except ModuleNotFoundError:  # pragma: no cover - fallback when SDK unavailable
-    from typing import Any as _Any
-
-    OpenAI = _Any  # type: ignore[assignment]
-
-
 ContentItem = Dict[str, Any]
 Message = Dict[str, Any]
 
