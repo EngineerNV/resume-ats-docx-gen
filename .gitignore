@@ -211,5 +211,8 @@ test_resume.docx
 *.docx
 output/
 
+# Generated workflow artifacts
+*_output.json
+
 # MCP server outbox
 outbox/
