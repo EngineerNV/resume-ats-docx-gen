@@ -16,7 +16,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from agents.workflows import ResumeJsonWorkflow
+from agents.workflows import ResumeJsonWorkflow, prepare_resume_for_mcp
 from api.mcp_client import generate_resume_via_mcp
 
 app = FastAPI(
@@ -245,11 +245,18 @@ async def workflow_docx(
         # Get the optimized resume JSON
         optimized_resume = result.optimized_resume_json.parsed
         
-        # Use MCP client to communicate with the MCP server to generate DOCX
-        # This spawns the MCP server process and calls its generate_resume tool
-        filename = "resume.docx"
+        # Use the MCP Resume Agent to determine filename and prepare for MCP server
+        # This agent reviews the resume and intelligently names the file
+        mcp_agent_result = prepare_resume_for_mcp(optimized_resume)
+        
+        # Use the filename and resume data determined by the agent
+        filename = mcp_agent_result.filename
+        resume_data_for_mcp = mcp_agent_result.resume_data
+        
+        # Communicate with the MCP server to generate DOCX
+        # The MCP server should be running as part of the project setup
         mcp_result = generate_resume_via_mcp(
-            resume_data=optimized_resume,
+            resume_data=resume_data_for_mcp,
             filename=filename
         )
         
@@ -260,11 +267,12 @@ async def workflow_docx(
                     "ok": False,
                     "code": "DOCX_GENERATION_ERROR",
                     "message": mcp_result["message"],
-                    "details": mcp_result.get("details", "")
+                    "details": mcp_result.get("details", ""),
+                    "agent_reasoning": mcp_agent_result.reasoning,
                 }
             )
         
-        # Return the generated DOCX file
+        # Return the generated DOCX file with the agent-determined filename
         docx_path = Path(mcp_result["path"])
         if not docx_path.exists():
             return JSONResponse(
@@ -272,17 +280,18 @@ async def workflow_docx(
                 content={
                     "ok": False,
                     "code": "FILE_NOT_FOUND",
-                    "message": "Generated DOCX file not found"
+                    "message": "Generated DOCX file not found",
+                    "agent_reasoning": mcp_agent_result.reasoning,
                 }
             )
         
         return FileResponse(
             path=str(docx_path),
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            filename="resume.docx",
+            filename=filename,  # Use the agent-determined filename
             headers={
                 "Cache-Control": "no-store",
-                "Content-Disposition": 'attachment; filename="resume.docx"'
+                "Content-Disposition": f'attachment; filename="{filename}"'
             }
         )
         
