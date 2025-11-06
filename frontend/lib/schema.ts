@@ -19,7 +19,7 @@ export const RESUME_MAX_FILES = 5;
 export const JOB_MAX_FILES = 3;
 export const GROUP_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
-type NamedBlob = Blob & { name?: string };
+export type NamedBlob = Blob & { name?: string };
 
 const blobSchema = z
   .instanceof(Blob)
