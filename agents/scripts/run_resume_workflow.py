@@ -80,7 +80,7 @@ def run_resume_workflow(
     additional_context: Optional[Any],
     client: Optional[Any] = None,
 ) -> Dict[str, Any]:
-    """Execute the workflow and return a serialisable payload."""
+    """Execute the workflow and return a serializable payload."""
 
     workflow = ResumeJsonWorkflow(client=client)
     result = workflow.run(
