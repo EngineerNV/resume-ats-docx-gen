@@ -1,294 +1,127 @@
 # Architecture & Integration Overview
 
-## System Architecture
+This document explains how the CLI, FastAPI backend, OpenAI agent workflows, MCP server, and Next.js frontend collaborate to turn unstructured resumes into ATS-friendly DOCX files.
 
+## 1. High-Level System
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Frontend (Next.js)                       │
-│                                                                   │
-│  - Collects resume text and job description                     │
-│  - Sends POST requests to FastAPI server                        │
-│  - Receives JSON suggestions or DOCX files                      │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-                            │ HTTP POST
-                            │
-┌───────────────────────────▼─────────────────────────────────────┐
-│                    FastAPI Server (Python)                       │
-│                                                                   │
-│  Endpoints:                                                      │
-│  - POST /api/workflow/json  → Returns JSON suggestions          │
-│  - POST /api/workflow/docx  → Returns DOCX file                 │
-│                                                                   │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │         Agent Workflow Orchestration                     │   │
-│  │                                                           │   │
-│  │  1. Input Validation                                     │   │
-│  │  2. Resume Context Extraction (OpenAI Agent)            │   │
-│  │  3. Workflow Decision (job tuning vs improvement)       │   │
-│  │  4. Resume Optimization (OpenAI Agents)                 │   │
-│  │  5. JSON Generation                                      │   │
-│  │                                                           │   │
-│  └───────────────────────┬─────────────────────────────────┘   │
-│                          │                                       │
-│                          │ Pass JSON to Filename Agent           │
-│                          │                                       │
-│  ┌───────────────────────▼─────────────────────────────────┐   │
-│  │           Filename Agent (prepare_resume_for_mcp)        │   │
-│  │                                                           │   │
-│  │  - Reviews optimized resume JSON                         │   │
-│  │  - Extracts candidate name                               │   │
-│  │  - Generates intelligent filename                        │   │
-│  │  - Returns: jane_smith_resume.docx                       │   │
-│  │                                                           │   │
-│  └───────────────────────┬─────────────────────────────────┘   │
-│                          │                                       │
-│                          │ Direct function call                  │
-│                          │                                       │
-│  ┌───────────────────────▼─────────────────────────────────┐   │
-│  │      Direct Generation (generate_resume_tool)            │   │
-│  │                                                           │   │
-│  │  - Validates resume JSON with Pydantic                   │   │
-│  │  - Generates DOCX using python-docx                      │   │
-│  │  - Saves to outbox/ directory                            │   │
-│  │  - Returns file path                                     │   │
-│  │                                                           │   │
-│  └───────────────────────────────────────────────────────────┘   │
-└───────────────────────────────────────────────────────────────────┘
+┌────────────────────┐        ┌────────────────────────────────────┐
+│ CLI / Frontend /   │  HTTP  │ FastAPI Server (api/server.py)     │
+│ API clients        ├───────►│ • combines text + uploads          │
+└────────────────────┘        │ • validates inputs                  │
+                              │ • instantiates ResumeOrchestrator  │
+                              └───────────────┬────────────────────┘
+                                              │
+                                              ▼
+                 ┌────────────────────────────────────────────┐
+                 │ app_agents.workflows.ResumeOrchestrator    │
+                 │  • resume_context_extractor (parses raw    │
+                 │    text)                                   │
+                 │  • job_research_agent (job mode only)      │
+                 │  • resume_json_creator (flow manager,      │
+                 │    tune/improve, personal summary, JSON    │
+                 │    builder, judge)                         │
+                 └────────────────────────────────────────────┘
+                                              │
+                                              ▼
+                             Optimized resume JSON + reasoning
+                                              │
+                              ┌───────────────▼────────────────┐
+                              │ resume_gen.ResumeGenerator     │
+                              │ • python-docx rendering        │
+                              │ • config-driven styling        │
+                              └───────────────┬────────────────┘
+                                              │
+                               DOCX saved to outbox/ + download
 ```
+The standalone MCP server (`resume_mcp/server.py`) exposes the same generator/validation stack to AI tooling. MCP clients call `generate_resume` via Model Context Protocol, while the FastAPI server links to `ResumeGenerator` directly for lower latency.
 
-## Component Integration
+## 2. Component Responsibilities
+### FastAPI server (`api/server.py`)
+- Exposes `GET /`, `POST /api/workflow/json`, and `POST /api/workflow/docx`.
+- Normalizes request payloads by combining free text and uploaded files via `read_file_content` and `combine_text_and_files`.
+- Executes the agent workflow (`ResumeOrchestrator.run`) and returns JSON or streams the rendered DOCX file stored in `outbox/`.
+- Handles validation (required text, job description for job mode, decoding failures) and responds with structured JSON errors.
 
-### 1. FastAPI Server → OpenAI Agent Workflow
+### Agent workflow (`app_agents/workflows/`)
+- `ResumeOrchestrator` is the only entry point. It:
+  1. Detects mode (`job_tuning` vs `resume_improvement`).
+  2. Runs `job_research_agent` when job descriptions are supplied, surfacing ATS insights for the downstream prompt.
+  3. Invokes `resume_context_extractor` to give the agent chain structured facts.
+  4. Calls `resume_json_creator`, which wires the Flow Manager → Tune/Improve → Personal Statement → JSON Builder → Judge agents defined with the OpenAI Agents SDK.
+  5. Returns `ResumeWorkflowResult` (optimized JSON, filename, mode, job research notes, reasoning).
+- `run_resume_workflow(...)` wraps the async orchestrator so CLI/tests can call it synchronously.
+- `app_agents/testing` contains `FakeOpenAI` and mock recordings for deterministic tests.
 
-**File**: `api/server.py`
+### DOCX generation (`resume_gen/`)
+- `ResumeGenerator` reads either the shipped `config.json` or defaults, sets up a python-docx `Document`, and renders headers, summaries, skills, experience (bullets or subsections), education, and awards.
+- `resume_gen/cli.py` exposes the generator via `resume-gen render --in … --out …`.
+- Generated documents are placed in `outbox/` by both the CLI and API; adjust or clean that folder as needed.
 
-```python
-from app_agents.workflows import ResumeJsonWorkflow
+### MCP server (`resume_mcp/`)
+- Implements the `generate_resume` tool plus `template://` and `outbox://` resources with FastMCP.
+- Validates input JSON through `resume_mcp.models.Resume` before passing it to the same `ResumeGenerator` used by the API.
+- Enables Claude Desktop, VS Code Copilot, or any MCP-aware assistant to call the generator without invoking FastAPI.
 
-workflow = ResumeJsonWorkflow()
-result = workflow.run(
-    mode=workflow_mode,
-    resume_text=combined_resume_text,
-    job_description=combined_job_description,
-    additional_context=additional_context,
-)
+### Frontend (`frontend/`)
+- Next.js App Router UI for collecting resume text/files, previewing payloads, and calling either mock routes or the Python backend (`PY_WORKFLOW_JSON_URL`, `PY_WORKFLOW_DOCX_URL`).
+- Defaults to mock data so the UX can be exercised without an API key; set `USE_MOCK=false` to proxy to FastAPI.
+
+## 3. Data Flows
+### `/api/workflow/json`
+1. Inputs (`mode`, `resumeText`, `context`, `jobDescriptionText`, optional files) are merged into plain text.
+2. `ResumeOrchestrator` runs asynchronously and returns optimized JSON plus metadata.
+3. Response payload:
+   ```json
+   {
+     "ok": true,
+     "data": {
+       "mode": "job_tuning",
+       "filename": "JaneSmith_Resume.docx",
+       "optimized_resume_json": { … },
+       "job_research_output": "…",
+       "reasoning": "Generated job_tuning resume for Jane Smith aligned to job requirements"
+     }
+   }
+   ```
+
+### `/api/workflow/docx`
+1. Follows the same orchestration as `/api/workflow/json`.
+2. Instantiates `ResumeGenerator(result.optimized_resume_json)` and writes to `outbox/` using the filename returned by the orchestrator (simple `FirstLast_Resume.docx` logic).
+3. Streams the generated DOCX back to the caller with `FileResponse` and `Cache-Control: no-store` headers.
+
+### CLI
+- Reads JSON from disk, feeds it directly into `ResumeGenerator`, and writes to the requested location.
+
+### MCP
+- External agents call `generate_resume(resume, filename)`.
+- `resume_mcp.tools.generate_resume_tool` performs validation and generation and returns both filesystem and `outbox://` URIs.
+
+## 4. Error Handling Layers
+1. **FastAPI form validation** – ensures resume text is present and job descriptions accompany `mode=job`.
+2. **File decoding** – gracefully decodes `.txt`, `.md`, `.docx`, or `.pdf` uploads (requires `pymupdf` for PDFs).
+3. **Agent workflow exceptions** – surfaced as `WORKFLOW_ERROR` responses with tracebacks for debugging.
+4. **DOCX generation** – verifies `outbox/<filename>.docx` exists before streaming and reports `FILE_NOT_FOUND` if not.
+5. **MCP tool validation** – `pydantic.ValidationError` messages are converted into actionable bullet lists for LLM clients.
+
+## 5. Testing Strategy
+- `tests/test_fastapi_agents_docx.py` spins up the FastAPI server (requires a valid OpenAI key) and exercises JSON + DOCX endpoints.
+- `tests/test_resume_workflow.py` and friends mock the Agents SDK via `app_agents.testing.FakeOpenAI` to verify orchestrator plumbing without network calls.
+- `tests/test_direct_generation.py` focuses on `ResumeGenerator` + optional filename agent interactions.
+- `tests/test_mcp.py` validates that MCP tools/resources are registered and functional.
+
+Run `pytest` for the full suite or execute individual scripts (they are all runnable modules) when debugging a particular slice of the system.
+
+## 6. Frontend Integration
+Configure `frontend/.env.local`:
 ```
-
-The workflow orchestrates multiple OpenAI agents:
-- **Resume Context Extractor**: Parses raw resume text into structured context
-- **Flow Manager**: Decides between job tuning vs general improvement
-- **Tune Resume to JD Agent**: Aligns resume with job description
-- **Improve Current Resume Agent**: General resume enhancement
-- **Personal Statement Agent**: Generates professional summary
-- **Resume JSON Builder**: Creates structured resume JSON
-- **Judge for Improvement**: Final optimization pass
-
-### 2. FastAPI Server → Filename Agent → Direct Generation
-
-**File**: `api/server.py` and `app_agents/workflows/file_naming_agent.py`
-
-```python
-from app_agents.workflows import prepare_resume_for_mcp
-from resume_mcp.tools import generate_resume_tool
-
-# Filename Agent determines intelligent filename
-filename_result = prepare_resume_for_mcp(optimized_resume)
-
-# Direct generation call
-generation_result = generate_resume_tool(
-    resume_data=filename_result.resume_data,
-    filename=filename_result.filename
-)
-```
-
-**Filename Agent** (`app_agents/workflows/file_naming_agent.py`):
-- Reviews optimized resume JSON
-- Extracts candidate name from resume data
-- Generates professional, URL-safe filename
-- Returns filename, resume data, and reasoning
-
-**Direct Generation Tool** (`resume_mcp/tools.py`):
-- Validates resume JSON with Pydantic
-- Generates DOCX using python-docx library
-- Saves file to outbox/ directory
-- Returns file path and success status
-
-**Benefits**:
-- Simple, direct function calls
-- No protocol overhead (~100ms faster)
-- Fewer moving parts, more reliable
-- Easier to debug and maintain
-- Agent still provides intelligent naming
-
-### 3. Standalone MCP Server Usage (Optional)
-
-**File**: `resume_mcp/server.py`
-
-For AI client integration (Claude Desktop, VS Code Copilot):
-
-```bash
-python -m resume_mcp.server
-```
-
-The standalone MCP server exposes the same generation tools via the MCP protocol for external AI agents. This is separate from the FastAPI workflow which uses direct generation.
-
-## Data Flow
-
-### JSON Workflow Endpoint
-
-```
-User Input (Frontend)
-  │
-  ├─→ mode: "job" | "resume"
-  ├─→ resumeText: string
-  ├─→ jobDescriptionText: string (optional)
-  ├─→ context: string (optional)
-  │
-  ▼
-FastAPI Server
-  │
-  ├─→ Validate inputs
-  ├─→ Combine text and file uploads
-  ├─→ Determine workflow mode
-  │
-  ▼
-Agent Workflow (ResumeJsonWorkflow)
-  │
-  ├─→ Extract resume context
-  ├─→ Flow manager decision
-  ├─→ Job alignment OR resume improvement
-  ├─→ Generate personal summary
-  ├─→ Build resume JSON
-  ├─→ Optimize with judge agent
-  │
-  ▼
-Response to Frontend
-  │
-  └─→ {
-        "ok": true,
-        "data": {
-          "mode": "job_tuning",
-          "resume_json": {...},
-          "optimized_resume_json": {...}
-        }
-      }
-```
-
-### DOCX Workflow Endpoint
-
-```
-User Input (Frontend)
-  │
-  [Same as JSON workflow]
-  │
-  ▼
-FastAPI Server
-  │
-  [Same validation and workflow]
-  │
-  ▼
-Agent Workflow
-  │
-  └─→ optimized_resume_json
-      │
-      ▼
-Filename Agent (prepare_resume_for_mcp)
-  │
-  ├─→ Extract candidate name
-  ├─→ Generate intelligent filename
-  └─→ Prepare resume data
-  │
-  ▼
-Direct Generation (generate_resume_tool)
-  │
-  ├─→ Validate with Pydantic
-  ├─→ Generate DOCX with python-docx
-  ├─→ Save to outbox/jane_smith_resume.docx
-  │
-  ▼
-Response to Frontend
-  │
-  └─→ Binary DOCX file download
-```
-
-## Key Integration Points
-
-### 1. Environment Configuration
-
-Both the agent workflow and API server require:
-
-```bash
-# .env file
-OPENAI_API_KEY=your-api-key-here
-OPENAI_BASE_URL=https://api.openai.com/v1  # Optional
-```
-
-### 2. Shared Dependencies
-
-- **app_agents/workflows**: Workflow orchestration and Filename Agent
-- **resume_mcp/tools**: DOCX generation functions
-- **resume_gen/generator**: Core resume rendering
-- **OpenAI SDK**: Agent execution
-- **Pydantic**: Data validation
-
-### 3. Error Handling
-
-The integration provides layered error handling:
-
-1. **FastAPI validation**: Input validation before workflow
-2. **Agent workflow**: OpenAI API errors and workflow logic
-3. **Filename Agent**: Filename generation with fallback logic
-4. **Direct generation**: Resume JSON validation and DOCX generation
-5. **Structured responses**: Consistent error format for frontend
-
-## Testing the Integration
-
-### 1. Unit Testing
-
-```bash
-# Test API integration
-python test_api_integration.py
-
-# Test direct generation
-python test_direct_generation.py
-```
-
-### 2. Manual Testing
-
-```bash
-# Start the server
-resume-api
-
-# Test health check
-curl http://localhost:8000/
-
-# Test JSON workflow
-curl -X POST http://localhost:8000/api/workflow/json \
-  -F 'mode=resume' \
-  -F 'resumeText=Your resume...'
-
-# Test DOCX generation
-curl -X POST http://localhost:8000/api/workflow/docx \
-  -F 'mode=job' \
-  -F 'resumeText=Your resume...' \
-  -F 'jobDescriptionText=Job description...' \
-  -o resume.docx
-```
-
-### 3. Interactive Testing
-
-Visit `http://localhost:8000/docs` for the Swagger UI with interactive API testing.
-
-## Frontend Integration
-
-Configure the frontend to use the FastAPI server:
-
-```bash
-# frontend/.env.local
 USE_MOCK=false
 PY_WORKFLOW_JSON_URL=http://localhost:8000/api/workflow/json
 PY_WORKFLOW_DOCX_URL=http://localhost:8000/api/workflow/docx
 ```
+The UI enforces the same validation rules as the API, shows payload previews, and reveals reasoning returned by the agents to help users understand the optimizations that were applied.
 
-The frontend already implements the correct API contract and will work seamlessly with the FastAPI server.
+## 7. Optional Features
+- `app_agents/workflows/file_naming_agent.py` still provides an OpenAI-driven filename generator for cases where you prefer LLM-selected naming logic (e.g., when integrating directly with MCP clients). The FastAPI path currently uses a deterministic fallback to keep latency predictable.
+- `generate_claude_config.py` emits helper JSON for Claude Desktop MCP configuration.
+
+Keeping documentation aligned with the code paths above ensures contributors know exactly which layer to touch when updating prompts, changing the generator, or extending the API contract.

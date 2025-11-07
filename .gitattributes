@@ -1,0 +1,8 @@
+# Enforce LF endings for all text files
+* text eol=lf
+
+# Binary assets keep their native form
+*.docx binary
+*.pdf binary
+*.png binary
+*.jpg binary

@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 """
-Example script demonstrating the FastAPI + MCP integration workflow.
-
-This script shows how the FastAPI server orchestrates:
-1. OpenAI agent workflow for resume optimization
-2. MCP server tool for DOCX generation
+Example script demonstrating how the FastAPI server, agent workflow, and
+generator fit together. It highlights the primary path (FastAPI calls
+`ResumeOrchestrator` + `ResumeGenerator`) and shows how the MCP tool can be
+invoked when integrating with external AI clients.
 """
 
 import json
@@ -73,9 +72,9 @@ def demo_workflow_integration():
     print()
     
     print("This demo shows how the FastAPI server orchestrates:")
-    print("1. Resume text input from user")
-    print("2. OpenAI agent workflow (optimizes resume)")
-    print("3. MCP server tool (generates DOCX)")
+    print("1. Resume text input from the CLI, UI, or API")
+    print("2. OpenAI agent workflow (ResumeOrchestrator)")
+    print("3. ResumeGenerator rendering the final DOCX")
     print()
     
     # Show the inputs
@@ -92,30 +91,34 @@ def demo_workflow_integration():
     print("-" * 70)
     print("1. Frontend sends POST request to /api/workflow/json or /api/workflow/docx")
     print("2. FastAPI server validates input and determines mode (job/resume)")
-    print("3. Agent workflow (ResumeJsonWorkflow) processes the resume:")
+    print("3. Agent workflow (ResumeOrchestrator) processes the resume:")
     print("   - Extracts structured context")
-    print("   - Generates optimized JSON")
-    print("   - Aligns with job description (if provided)")
-    print("4. MCP server tool (generate_resume_tool) creates DOCX")
+    print("   - Runs job research when mode=job")
+    print("   - Generates optimized JSON + reasoning")
+    print("4. ResumeGenerator renders the DOCX and saves it to outbox/")
     print("5. FastAPI returns JSON suggestions or DOCX file\n")
-    
-    # Show MCP integration
-    print("🔗 MCP Integration:")
+
+    # Show both direct generation and optional MCP tooling
+    print("🔗 Generation Paths:")
     print("-" * 70)
-    print("The FastAPI server calls MCP tools directly (no separate server needed):")
-    print()
+    print("FastAPI path (used in production):")
     print("```python")
-    print("from resume_mcp.tools import generate_resume_tool")
+    print("from app_agents.workflows import ResumeOrchestrator")
+    print("from resume_gen.generator import ResumeGenerator")
     print()
-    print("result = generate_resume_tool(")
-    print("    resume_data=optimized_json,")
-    print("    filename='resume.docx'")
-    print(")")
+    print("result = await ResumeOrchestrator().run(resume_text, job_description)")
+    print("ResumeGenerator(result.optimized_resume_json).generate('outbox/file.docx')")
     print("```")
     print()
-    
-    # Test MCP tool
-    print("🧪 Testing MCP Tool:")
+    print("MCP path (for Claude / Copilot integrations):")
+    print("```python")
+    print("from resume_mcp.tools import generate_resume_tool")
+    print("generate_resume_tool(resume_data=optimized_json, filename='resume.docx')")
+    print("```")
+    print()
+
+    # Test MCP tool (useful when wiring up AI clients)
+    print("🧪 Optional MCP Tool Smoke Test:")
     print("-" * 70)
     
     try:
