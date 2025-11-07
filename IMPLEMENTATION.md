@@ -41,7 +41,7 @@ Created intelligent filename generation agent:
 
 ### 4. Agent Workflow Orchestration
 
-The server uses `agents.workflows.ResumeJsonWorkflow` to:
+The server uses `app_agents.workflows.ResumeJsonWorkflow` to:
 - ✅ Extract structured context from raw resume text
 - ✅ Make intelligent decisions about workflow mode (job tuning vs improvement)
 - ✅ Run multiple specialized OpenAI agents in sequence
@@ -196,7 +196,7 @@ PY_WORKFLOW_DOCX_URL=http://localhost:8000/api/workflow/docx
 - `api/__init__.py`
 - `api/server.py` (FastAPI server implementation)
 - `api/README.md` (API documentation)
-- `agents/workflows/mcp_resume_agent.py` (Filename Agent)
+- `app_agents/workflows/file_naming_agent.py` (Filename Agent)
 - `ARCHITECTURE.md` (System architecture guide)
 - `SIMPLIFICATION.md` (Architecture simplification details)
 - `MCP_RESUME_AGENT.md` (Filename Agent documentation)

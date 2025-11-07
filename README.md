@@ -13,12 +13,12 @@ This repository provides a complete resume generation system with multiple integ
    - Provides both JSON and DOCX endpoints
    - Run with: `resume-api`
 
-### 2. **Agent Workflows** (`agents/workflows/`)
+### 2. **Agent Workflows** (`app_agents/workflows/`)
    - Resume optimization and generation powered by OpenAI
    - Filename Agent for intelligent document naming
    - Context extraction and resume improvement
    - Job description alignment
-   - See [`agents/README.md`](agents/README.md) for details
+  - See [`app_agents/README.md`](app_agents/README.md) for details
 
 ### 3. **CLI Tool** (`resume-gen`) - **Direct Generation**
    - Standalone command-line tool

@@ -184,7 +184,7 @@ The resume generation flows through the FastAPI server in this sequence:
 
 ### Filename Agent
 
-Located in `agents/workflows/mcp_resume_agent.py`, the Filename Agent is responsible for intelligent document naming:
+Located in `app_agents/workflows/file_naming_agent.py`, the Filename Agent is responsible for intelligent document naming:
 
 **Purpose**: Extract candidate name and generate professional, URL-safe filenames
 
@@ -197,7 +197,7 @@ Located in `agents/workflows/mcp_resume_agent.py`, the Filename Agent is respons
 
 **Example Usage**:
 ```python
-from agents.workflows.mcp_resume_agent import prepare_resume_for_mcp
+from app_agents.workflows.file_naming_agent import prepare_resume_for_mcp
 
 # After agent workflow generates optimized JSON
 result = prepare_resume_for_mcp(optimized_resume_json)

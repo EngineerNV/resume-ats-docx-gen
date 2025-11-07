@@ -1,31 +1,25 @@
 """
-FastAPI server for orchestrating resume generation workflow.
+FastAPI server for resume generation using OpenAI Agents SDK.
 
-This server provides REST API endpoints that:
-1. Accept resume and job description data from the frontend
-2. Orchestrate the OpenAI agent workflow for resume optimization
-3. Generate DOCX files directly using the resume generator
-4. Return JSON suggestions or DOCX downloads to the frontend
+Single unified implementation - no old patterns, clean architecture.
 """
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional, List
-import json
-import tempfile
+from typing import List
 from pathlib import Path
 
-from agents.workflows import ResumeJsonWorkflow, prepare_resume_for_mcp
-from resume_mcp.tools import generate_resume_tool
+from app_agents.workflows import ResumeOrchestrator
+from resume_gen.generator import ResumeGenerator
 
 app = FastAPI(
-    title="Resume ATS DOCX Generator API",
-    description="API for generating ATS-optimized resumes",
-    version="1.0.0"
+    title="Resume ATS DOCX Generator",
+    description="AI-powered ATS-optimized resume generation using OpenAI Agents SDK",
+    version="2.0.0"
 )
 
-# Enable CORS for frontend development
+# CORS for frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:3001"],
@@ -36,22 +30,21 @@ app.add_middleware(
 
 
 async def read_file_content(file: UploadFile) -> str:
-    """Read and decode uploaded file content."""
+    """Read and decode uploaded file."""
     content = await file.read()
     try:
         return content.decode('utf-8')
     except UnicodeDecodeError:
-        # Try common encodings
         for encoding in ['latin-1', 'cp1252', 'iso-8859-1']:
             try:
                 return content.decode(encoding)
             except UnicodeDecodeError:
                 continue
-        raise HTTPException(status_code=400, detail=f"Unable to decode file {file.filename}")
+        raise HTTPException(400, f"Unable to decode file {file.filename}")
 
 
 async def combine_text_and_files(text: str, files: List[UploadFile]) -> str:
-    """Combine text input with content from uploaded files."""
+    """Combine text input with file contents."""
     parts = []
     if text and text.strip():
         parts.append(text.strip())
@@ -66,8 +59,12 @@ async def combine_text_and_files(text: str, files: List[UploadFile]) -> str:
 
 @app.get("/")
 async def root():
-    """Health check endpoint."""
-    return {"status": "ok", "message": "Resume ATS DOCX Generator API"}
+    """Health check."""
+    return {
+        "status": "ok",
+        "message": "Resume ATS DOCX Generator (OpenAI Agents SDK)",
+        "version": "2.0.0"
+    }
 
 
 @app.post("/api/workflow/json")
@@ -80,89 +77,77 @@ async def workflow_json(
     jobDescriptionFiles: List[UploadFile] = File(default=[]),
 ):
     """
-    Process resume workflow and return JSON suggestions.
+    Generate optimized resume JSON using OpenAI Agents SDK.
     
     Args:
-        mode: Workflow mode ('resume' for improvement, 'job' for job tuning)
-        resumeText: Raw resume text input
-        context: Additional context about the candidate
-        jobDescriptionText: Job description text
-        resumeFiles: Uploaded resume files
-        jobDescriptionFiles: Uploaded job description files
+        mode: 'resume' for improvement, 'job' for job tuning
+        resumeText: Resume text
+        context: Additional context
+        jobDescriptionText: Job description (required for 'job' mode)
+        resumeFiles: Resume file uploads
+        jobDescriptionFiles: Job description file uploads
     
     Returns:
-        JSON response with optimized resume suggestions
+        JSON with optimized resume data
     """
     try:
-        # Combine text and file inputs
-        combined_resume_text = await combine_text_and_files(resumeText, resumeFiles)
-        combined_job_description = await combine_text_and_files(jobDescriptionText, jobDescriptionFiles)
+        # Combine inputs
+        resume_text = await combine_text_and_files(resumeText, resumeFiles)
+        job_description = await combine_text_and_files(jobDescriptionText, jobDescriptionFiles)
         
-        # Validate inputs
-        if not combined_resume_text or not combined_resume_text.strip():
+        # Validate
+        if not resume_text:
             return JSONResponse(
-                status_code=400,
                 content={
                     "ok": False,
                     "code": "VALIDATION_ERROR",
-                    "fieldErrors": {
-                        "resumeText": ["Resume text is required"]
-                    }
-                }
+                    "fieldErrors": {"resumeText": ["Resume text is required"]}
+                },
+                status_code=400
             )
         
-        # Determine workflow mode
-        workflow_mode = "resume_improvement"
-        if mode == "job":
-            if not combined_job_description or not combined_job_description.strip():
-                return JSONResponse(
-                    status_code=400,
-                    content={
-                        "ok": False,
-                        "code": "VALIDATION_ERROR",
-                        "fieldErrors": {
-                            "jobDescriptionText": ["Job description is required in job tuning mode"]
-                        }
-                    }
-                )
-            workflow_mode = "job_tuning"
+        if mode == "job" and not job_description:
+            return JSONResponse(
+                content={
+                    "ok": False,
+                    "code": "VALIDATION_ERROR",
+                    "fieldErrors": {"jobDescriptionText": ["Job description required in job mode"]}
+                },
+                status_code=400
+            )
         
-        # Prepare additional context
-        additional_context = None
-        if context and context.strip():
-            additional_context = {"user_context": context.strip()}
-        
-        # Run the agent workflow
-        workflow = ResumeJsonWorkflow()
-        result = workflow.run(
-            mode=workflow_mode,
-            resume_text=combined_resume_text,
-            job_description=combined_job_description if workflow_mode == "job_tuning" else None,
-            additional_context=additional_context,
+        # Run workflow
+        orchestrator = ResumeOrchestrator()
+        result = await orchestrator.run(
+            resume_text=resume_text,
+            job_description=job_description if mode == "job" else None,
+            additional_context=context.strip() if context else None,
         )
         
-        # Format response to match frontend expectations
-        response_data = {
-            "mode": result.mode,
-            "should_align_to_job": result.should_align_to_job,
-            "resume_json": result.resume_json.parsed,
-            "optimized_resume_json": result.optimized_resume_json.parsed,
-            "personal_summary": result.personal_summary.parsed if result.personal_summary else None,
-        }
-        
         return JSONResponse(
-            status_code=200,
-            content={"ok": True, "data": response_data}
+            content={
+                "ok": True,
+                "data": {
+                    "mode": result.mode,
+                    "filename": result.filename,
+                    "optimized_resume_json": result.optimized_resume_json,
+                    "job_research_output": result.job_research_output,
+                    "reasoning": result.reasoning,
+                }
+            },
+            status_code=200
         )
         
     except Exception as e:
+        import traceback
         return JSONResponse(
-            status_code=500,
             content={
                 "ok": False,
                 "code": "WORKFLOW_ERROR",
-                "message": f"Workflow execution failed: {str(e)}"
-            }
+                "message": str(e),
+                "traceback": traceback.format_exc()
+            },
+            status_code=500
         )
 
 
@@ -176,144 +161,99 @@ async def workflow_docx(
     jobDescriptionFiles: List[UploadFile] = File(default=[]),
 ):
     """
-    Process resume workflow and generate DOCX file.
+    Generate optimized resume DOCX file using OpenAI Agents SDK.
     
-    This endpoint orchestrates the full workflow:
-    1. Runs the OpenAI agent workflow to generate optimized resume JSON
-    2. Uses filename agent to determine intelligent filename
-    3. Generates DOCX directly using the resume generator
-    4. Returns the DOCX file for download
+    Complete workflow:
+    1. Run OpenAI agent workflow for optimization
+    2. Generate intelligent filename
+    3. Create DOCX using resume_gen
+    4. Return file download
     
     Args:
-        mode: Workflow mode ('resume' for improvement, 'job' for job tuning)
-        resumeText: Raw resume text input
-        context: Additional context about the candidate
-        jobDescriptionText: Job description text
-        resumeFiles: Uploaded resume files
-        jobDescriptionFiles: Uploaded job description files
+        mode: 'resume' for improvement, 'job' for job tuning
+        resumeText: Resume text
+        context: Additional context
+        jobDescriptionText: Job description (required for 'job' mode)
+        resumeFiles: Resume file uploads
+        jobDescriptionFiles: Job description file uploads
     
     Returns:
         DOCX file download
     """
     try:
-        # Combine text and file inputs
-        combined_resume_text = await combine_text_and_files(resumeText, resumeFiles)
-        combined_job_description = await combine_text_and_files(jobDescriptionText, jobDescriptionFiles)
+        # Combine inputs
+        resume_text = await combine_text_and_files(resumeText, resumeFiles)
+        job_description = await combine_text_and_files(jobDescriptionText, jobDescriptionFiles)
         
-        # Validate inputs
-        if not combined_resume_text or not combined_resume_text.strip():
+        # Validate
+        if not resume_text:
             return JSONResponse(
-                status_code=400,
                 content={
                     "ok": False,
                     "code": "VALIDATION_ERROR",
-                    "fieldErrors": {
-                        "resumeText": ["Resume text is required"]
-                    }
-                }
+                    "fieldErrors": {"resumeText": ["Resume text is required"]}
+                },
+                status_code=400
             )
         
-        # Determine workflow mode
-        workflow_mode = "resume_improvement"
-        if mode == "job":
-            if not combined_job_description or not combined_job_description.strip():
-                return JSONResponse(
-                    status_code=400,
-                    content={
-                        "ok": False,
-                        "code": "VALIDATION_ERROR",
-                        "fieldErrors": {
-                            "jobDescriptionText": ["Job description is required in job tuning mode"]
-                        }
-                    }
-                )
-            workflow_mode = "job_tuning"
-        
-        # Prepare additional context
-        additional_context = None
-        if context and context.strip():
-            additional_context = {"user_context": context.strip()}
-        
-        # Run the agent workflow
-        workflow = ResumeJsonWorkflow()
-        result = workflow.run(
-            mode=workflow_mode,
-            resume_text=combined_resume_text,
-            job_description=combined_job_description if workflow_mode == "job_tuning" else None,
-            additional_context=additional_context,
-        )
-        
-        # Get the optimized resume JSON
-        optimized_resume = result.optimized_resume_json.parsed
-        
-        # Use the filename agent to determine intelligent filename
-        # This agent reviews the resume and generates a professional filename
-        filename_agent_result = prepare_resume_for_mcp(optimized_resume)
-        
-        # Use the filename determined by the agent
-        filename = filename_agent_result.filename
-        resume_data = filename_agent_result.resume_data
-        
-        # Generate DOCX directly using the generation tool
-        # No MCP server communication needed - direct function call
-        generation_result = generate_resume_tool(
-            resume_data=resume_data,
-            filename=filename
-        )
-        
-        if not generation_result["success"]:
+        if mode == "job" and not job_description:
             return JSONResponse(
-                status_code=500,
                 content={
                     "ok": False,
-                    "code": "DOCX_GENERATION_ERROR",
-                    "message": generation_result["message"],
-                    "details": generation_result.get("details", ""),
-                    "agent_reasoning": filename_agent_result.reasoning,
-                }
+                    "code": "VALIDATION_ERROR",
+                    "fieldErrors": {"jobDescriptionText": ["Job description required in job mode"]}
+                },
+                status_code=400
             )
         
-        # Return the generated DOCX file with the agent-determined filename
-        docx_path = Path(generation_result["path"])
-        if not docx_path.exists():
+        # Run workflow
+        orchestrator = ResumeOrchestrator()
+        result = await orchestrator.run(
+            resume_text=resume_text,
+            job_description=job_description if mode == "job" else None,
+            additional_context=context.strip() if context else None,
+        )
+        
+        # Generate DOCX
+        output_dir = Path("outbox")
+        output_dir.mkdir(exist_ok=True)
+        output_path = output_dir / result.filename
+        
+        generator = ResumeGenerator(result.optimized_resume_json)
+        generator.generate(output_path)
+        
+        if not output_path.exists():
             return JSONResponse(
-                status_code=500,
                 content={
                     "ok": False,
                     "code": "FILE_NOT_FOUND",
-                    "message": "Generated DOCX file not found",
-                    "agent_reasoning": filename_agent_result.reasoning,
-                }
+                    "message": "DOCX generation failed"
+                },
+                status_code=500
             )
         
         return FileResponse(
-            path=str(docx_path),
+            path=str(output_path),
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            filename=filename,  # Use the agent-determined filename
+            filename=result.filename,
             headers={
                 "Cache-Control": "no-store",
-                "Content-Disposition": f'attachment; filename="{filename}"'
+                "Content-Disposition": f'attachment; filename="{result.filename}"'
             }
         )
         
     except Exception as e:
+        import traceback
         return JSONResponse(
-            status_code=500,
             content={
                 "ok": False,
                 "code": "WORKFLOW_ERROR",
-                "message": f"Workflow execution failed: {str(e)}"
-            }
+                "message": str(e),
+                "traceback": traceback.format_exc()
+            },
+            status_code=500
         )
 
 
 def main():
-    """Entry point for resume-api command."""
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-
-
-if __name__ == "__main__":
-    main()
-
-
+    """Start the server."""

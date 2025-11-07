@@ -21,9 +21,9 @@ def test_direct_generation():
     
     try:
         # Import required modules
-        from agents.workflows import prepare_resume_for_mcp
+        from app_agents.workflows import prepare_resume_for_mcp
         from resume_mcp.tools import generate_resume_tool
-        from agents.testing.fake_openai import FakeOpenAI, MockResponseSpec
+        from app_agents.testing.fake_openai import FakeOpenAI, MockResponseSpec
         
         # Load example resume
         example_path = Path(__file__).parent / "example_resume.json"

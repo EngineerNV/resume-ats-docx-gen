@@ -2,16 +2,16 @@ from fastapi.testclient import TestClient
 from api.server import app
 
 # Monkeypatch OpenAI client to use recorded mock outputs
-import agents.client as agent_client
-import agents.workflows.resume_json_creator as rjc
-import agents.workflows.mcp_resume_agent as mra
-from agents.testing.fake_openai import FakeOpenAI
-from agents.testing.mock_runs import mock_run
+import app_agents.client as agent_client
+import app_agents.workflows.resume_json_creator as rjc
+import app_agents.workflows.file_naming_agent as mra
+from app_agents.testing.fake_openai import FakeOpenAI
+from app_agents.testing.mock_runs import mock_run
 
 agent_client.create_openai_client = lambda *args, **kwargs: FakeOpenAI.from_specs(mock_run("jordan_resume_improvement"))
 # Also patch the imported symbol used inside resume_json_creator
 rjc.create_openai_client = agent_client.create_openai_client
-from agents.testing.fake_openai import MockResponseSpec
+from app_agents.testing.fake_openai import MockResponseSpec
 mra.create_openai_client = lambda *args, **kwargs: FakeOpenAI.from_specs([
     MockResponseSpec(kind="parse", parsed={
         "filename": "jordan_m_reynolds_resume.docx",

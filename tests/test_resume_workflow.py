@@ -33,7 +33,7 @@ if "pydantic" not in sys.modules:
     sys.modules["pydantic"] = fake_pydantic
 
 
-from agents.workflows.resume_json_creator import ResumeJsonWorkflow
+from app_agents.workflows import ResumeOrchestrator
 
 
 FAKE_RESUME_TEXT = """John Doe\nEmail: john.doe@example.com\nLinkedIn: linkedin.com/in/johndoe\nExperience: Built data pipelines in Python and GCP."""

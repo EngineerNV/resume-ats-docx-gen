@@ -125,7 +125,7 @@ The FastAPI server uses **direct function calls** (not MCP protocol) for optimal
 
 ### Generation Flow
 
-1. **Agent Workflow**: OpenAI agents optimize the resume JSON
+1. **Agent Workflow**: OpenAI agents optimize the resume JSON (in job mode, the server auto-derives ATS keywords from the job description)
 2. **Filename Agent**: Extracts candidate name and generates intelligent filename
 3. **Direct Generation**: Calls `generate_resume_tool()` directly (no MCP protocol)
 4. **File Storage**: Saves DOCX to `outbox/` directory
@@ -134,13 +134,19 @@ The FastAPI server uses **direct function calls** (not MCP protocol) for optimal
 ### Code Example
 
 ```python
-from agents.workflows import ResumeJsonWorkflow
-from agents.workflows.mcp_resume_agent import prepare_resume_for_mcp
+from app_agents.workflows import ResumeJsonWorkflow, derive_ats_keywords
+from app_agents.workflows.file_naming_agent import prepare_resume_for_mcp
 from resume_mcp.tools import generate_resume_tool
 
-# 1. Run agent workflow
+# 1. Run agent workflow (derive ATS keywords when in job mode)
 workflow = ResumeJsonWorkflow()
-result = workflow.run(resume_text=text, mode="resume_improvement")
+ats = derive_ats_keywords(job_description) if mode == "job" else None
+result = workflow.run(
+  resume_text=text,
+  mode="job_tuning" if mode == "job" else "resume_improvement",
+  job_description=job_description if mode == "job" else None,
+  ats_keywords=ats,
+)
 
 # 2. Generate filename
 filename_result = prepare_resume_for_mcp(result.optimized_resume_json.parsed)

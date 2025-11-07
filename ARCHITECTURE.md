@@ -64,7 +64,7 @@
 **File**: `api/server.py`
 
 ```python
-from agents.workflows import ResumeJsonWorkflow
+from app_agents.workflows import ResumeJsonWorkflow
 
 workflow = ResumeJsonWorkflow()
 result = workflow.run(
@@ -86,10 +86,10 @@ The workflow orchestrates multiple OpenAI agents:
 
 ### 2. FastAPI Server → Filename Agent → Direct Generation
 
-**File**: `api/server.py` and `agents/workflows/mcp_resume_agent.py`
+**File**: `api/server.py` and `app_agents/workflows/file_naming_agent.py`
 
 ```python
-from agents.workflows import prepare_resume_for_mcp
+from app_agents.workflows import prepare_resume_for_mcp
 from resume_mcp.tools import generate_resume_tool
 
 # Filename Agent determines intelligent filename
@@ -102,7 +102,7 @@ generation_result = generate_resume_tool(
 )
 ```
 
-**Filename Agent** (`agents/workflows/mcp_resume_agent.py`):
+**Filename Agent** (`app_agents/workflows/file_naming_agent.py`):
 - Reviews optimized resume JSON
 - Extracts candidate name from resume data
 - Generates professional, URL-safe filename
@@ -226,7 +226,7 @@ OPENAI_BASE_URL=https://api.openai.com/v1  # Optional
 
 ### 2. Shared Dependencies
 
-- **agents/workflows**: Workflow orchestration and Filename Agent
+- **app_agents/workflows**: Workflow orchestration and Filename Agent
 - **resume_mcp/tools**: DOCX generation functions
 - **resume_gen/generator**: Core resume rendering
 - **OpenAI SDK**: Agent execution

@@ -172,7 +172,7 @@ def demo_workflow_integration():
     print()
     print("For full integration testing with OpenAI:")
     print("  1. Set up .env with your OPENAI_API_KEY")
-    print("  2. Run: python -m agents.scripts.run_resume_workflow --mode job_tuning")
+    print("  2. Run: python -m app_agents.scripts.run_resume_workflow --mode job_tuning")
     print()
 
 

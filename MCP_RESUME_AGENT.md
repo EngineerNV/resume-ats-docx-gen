@@ -43,9 +43,9 @@ The agent uses the `MCP_RESUME_AGENT_INSTRUCTIONS` prompt which instructs it to:
 
 ### New Files Created
 
-1. **`agents/workflows/mcp_resume_agent.py`**
+1. **`app_agents/workflows/file_naming_agent.py`**
    - Contains `prepare_resume_for_mcp()` function
-   - Defines `MCPResumeAgentResult` dataclass
+   - Defines `FileNamingAgentResult` dataclass
    - Implements the agent workflow logic
 
 2. **`test_mcp_resume_agent.py`**
@@ -54,13 +54,13 @@ The agent uses the `MCP_RESUME_AGENT_INSTRUCTIONS` prompt which instructs it to:
 
 ### Modified Files
 
-1. **`agents/prompts.py`**
+1. **`app_agents/prompts.py`**
    - Added `MCP_RESUME_AGENT_INSTRUCTIONS` prompt
    - Added to `__all__` exports
 
-2. **`agents/workflows/__init__.py`**
+2. **`app_agents/workflows/__init__.py`**
    - Exported `prepare_resume_for_mcp` function
-   - Exported `MCPResumeAgentResult` dataclass
+   - Exported `FileNamingAgentResult` dataclass
 
 3. **`api/server.py`**
    - Imported `prepare_resume_for_mcp`
@@ -72,7 +72,7 @@ The agent uses the `MCP_RESUME_AGENT_INSTRUCTIONS` prompt which instructs it to:
 ## Usage Example
 
 ```python
-from agents.workflows import prepare_resume_for_mcp
+from app_agents.workflows import prepare_resume_for_mcp
 from resume_mcp.tools import generate_resume_tool
 
 # After getting optimized resume from workflow

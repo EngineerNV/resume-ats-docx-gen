@@ -15,8 +15,8 @@ This directory now contains the Python implementation of the agent workflows tha
 1. Copy `.env.example` to `.env` and set `OPENAI_API_KEY` (and `OPENAI_BASE_URL` if you are targeting a non-default endpoint).
 2. Instantiate the workflow in Python:
 
-   ```python
-   from agents.workflows import ResumeJsonWorkflow
+  ```python
+  from app_agents.workflows import ResumeJsonWorkflow
 
    workflow = ResumeJsonWorkflow()
    result = workflow.run(
@@ -34,9 +34,9 @@ This directory now contains the Python implementation of the agent workflows tha
 
 4. For quick manual testing (including the smoke scenarios requested by product), run the helper script which wraps the workflow with sample data:
 
-   ```bash
-   python -m agents.scripts.run_resume_workflow --mode job_tuning
-   python -m agents.scripts.run_resume_workflow --mode resume_improvement
+  ```bash
+  python -m app_agents.scripts.run_resume_workflow --mode job_tuning
+  python -m app_agents.scripts.run_resume_workflow --mode resume_improvement
    ```
 
    Use `--resume-file`, `--job-description-file`, or `--ats-keywords` to supply custom inputs, and `--output <path>` to persist the aggregated response JSON for inspection.
@@ -44,7 +44,7 @@ This directory now contains the Python implementation of the agent workflows tha
    When the OpenAI SDK is unavailable or network access is restricted, you can replay recorded agent outputs with `--mock-run`. For example, the `jordan_resume_improvement` recording validates the resume-improvement branch using the fictional Jordan Reynolds resume that product provided:
 
    ```bash
-   python -m agents.scripts.run_resume_workflow \
+   python -m app_agents.scripts.run_resume_workflow \
      --mode resume_improvement \
      --resume-file tests/fixtures/jordan_resume.txt \
      --mock-run jordan_resume_improvement \
@@ -66,8 +66,8 @@ The agent workflows are consumed by the FastAPI server (`api/server.py`) to prov
 The API server uses **direct function calls** (not MCP protocol) for optimal performance:
 
 ```python
-from agents.workflows import ResumeJsonWorkflow
-from agents.workflows.mcp_resume_agent import prepare_resume_for_mcp
+from app_agents.workflows import ResumeJsonWorkflow
+from app_agents.workflows.file_naming_agent import prepare_resume_for_mcp
 from resume_mcp.tools import generate_resume_tool
 
 # 1. Run agent workflow for optimization
@@ -93,7 +93,7 @@ return FileResponse(generation_result["path"])
 
 ### Filename Agent
 
-The `prepare_resume_for_mcp()` function in `mcp_resume_agent.py` provides intelligent filename generation:
+The `prepare_resume_for_mcp()` function in `file_naming_agent.py` provides intelligent filename generation:
 
 **Purpose**: Extract candidate name from resume JSON and generate professional, URL-safe filenames
 
@@ -106,7 +106,7 @@ The `prepare_resume_for_mcp()` function in `mcp_resume_agent.py` provides intell
 
 **Example**:
 ```python
-from agents.workflows.mcp_resume_agent import prepare_resume_for_mcp
+from app_agents.workflows.file_naming_agent import prepare_resume_for_mcp
 
 resume_json = {
     "header": {"name": "Jane Smith", "email": "jane@example.com"},
