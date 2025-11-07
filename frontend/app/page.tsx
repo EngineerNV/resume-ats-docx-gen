@@ -8,6 +8,8 @@ import { FileDropzone } from '../components/FileDropzone';
 import { StepIndicator, type StepState } from '../components/StepIndicator';
 import { PayloadPreview } from '../components/PayloadPreview';
 import { SubmitButtons } from '../components/SubmitButtons';
+import LoadingSpinner from '../components/LoadingSpinner';
+import PdfPreview from '../components/PdfPreview';
 import { GROUP_MAX_BYTES, JOB_MAX_FILES, MAX_TEXTAREA_LENGTH, RESUME_MAX_FILES } from '../lib/schema';
 import {
   buildFormData,
@@ -71,6 +73,9 @@ export default function HomePage() {
   const [loadingAction, setLoadingAction] = useState<'json' | 'docx' | null>(null);
   const [jsonResult, setJsonResult] = useState<SuggestionPayload | null>(null);
   const [docxPreviewUrl, setDocxPreviewUrl] = useState<string | null>(null);
+  const [docxFilename, setDocxFilename] = useState<string>('');
+  const [pdfFilename, setPdfFilename] = useState<string>('');
+  const [showPdfPreview, setShowPdfPreview] = useState<boolean>(false);
   const abortRef = useRef<AbortController | null>(null);
   const docxBlobRef = useRef<Blob | null>(null);
   const createIdempotencyKey = () =>
@@ -263,11 +268,11 @@ export default function HomePage() {
     resetAbort();
     resetDocxPreview();
     setLoadingAction('docx');
-    setStatus({ type: 'info', message: 'Preparing your DOCX download…' });
+    setStatus({ type: 'info', message: 'Running AI optimization and generating DOCX…' });
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const response = await fetch('/api/workflow/docx', {
+      const response = await fetch('http://localhost:8000/api/workflow/docx', {
         method: 'POST',
         body: buildFormData(state),
         cache: 'no-store',
@@ -300,10 +305,22 @@ export default function HomePage() {
 
       const blob = await response.blob();
       docxBlobRef.current = blob;
+      
+      // Get filename from Content-Disposition header
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filename = contentDisposition?.match(/filename="(.+)"/)?.[1] || 'resume.docx';
+      setDocxFilename(filename);
+      
+      // Get PDF filename from custom header
+      const pdfName = response.headers.get('X-PDF-Filename');
+      if (pdfName) {
+        setPdfFilename(pdfName);
+      }
+      
       const objectUrl = URL.createObjectURL(blob);
       setDocxPreviewUrl(objectUrl);
-      downloadBlobAsFile(blob, 'resume.docx');
-      setStatus({ type: 'success', message: 'DOCX downloaded. You can also open a preview.' });
+      downloadBlobAsFile(blob, filename);
+      setStatus({ type: 'success', message: `✅ DOCX downloaded: ${filename}. PDF conversion started in background.` });
     } catch (error) {
       if ((error as DOMException).name === 'AbortError') {
         setStatus({ type: 'info', message: 'Request cancelled.' });
@@ -523,25 +540,37 @@ export default function HomePage() {
 
             {docxPreviewUrl && (
               <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">DOCX ready</h3>
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">✅ Resume Generated!</h3>
                 <p className="text-sm text-slate-600 dark:text-slate-300">
-                  Your download started automatically. You can re-download or open the generated document in a new tab.
+                  DOCX: <span className="font-mono text-xs">{docxFilename}</span>
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  PDF conversion started in background. Click preview to check status.
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <button
                     type="button"
-                    onClick={() => docxBlobRef.current && downloadBlobAsFile(docxBlobRef.current, 'resume.docx')}
+                    onClick={() => docxBlobRef.current && downloadBlobAsFile(docxBlobRef.current, docxFilename)}
                     className="rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950"
                   >
-                    Download again
+                    📥 Download DOCX again
                   </button>
                   <button
                     type="button"
                     onClick={() => docxBlobRef.current && openBlobInNewTab(docxBlobRef.current)}
                     className="rounded-full border border-brand px-5 py-2 text-sm font-semibold text-brand hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-brand-dark dark:focus-visible:ring-offset-slate-950"
                   >
-                    Open preview
+                    🔗 Open DOCX in Tab
                   </button>
+                  {pdfFilename && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPdfPreview(true)}
+                      className="rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950"
+                    >
+                      👁️ Preview PDF
+                    </button>
+                  )}
                 </div>
               </section>
             )}
@@ -558,6 +587,14 @@ export default function HomePage() {
           </div>
         )}
       </section>
+      
+      {/* PDF Preview Modal */}
+      {showPdfPreview && pdfFilename && (
+        <PdfPreview
+          pdfFilename={pdfFilename}
+          onClose={() => setShowPdfPreview(false)}
+        />
+      )}
     </main>
   );
 }

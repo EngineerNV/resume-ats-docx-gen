@@ -47,8 +47,7 @@ FILE_NAMING_AGENT_SCHEMA = {
 FILE_NAMING_AGENT = AgentDefinition(
     name="File Naming Agent",
     instructions=MCP_RESUME_AGENT_INSTRUCTIONS,
-    model="gpt-4o",
-    temperature=0.3,
+    model="gpt-5-mini",
     response_format=_json_schema(
         "FileNamingAgentOutput",
         FILE_NAMING_AGENT_SCHEMA,

@@ -1,4 +1,5 @@
 from agents import WebSearchTool, Agent, ModelSettings, TResponseInputItem, Runner, RunConfig, trace
+import json
 from pydantic import BaseModel, Field
 from openai.types.shared.reasoning import Reasoning
 
@@ -170,10 +171,9 @@ false
 - All decisions should be made using only the data provided in each input set. If there is ambiguity or missing data for job description, default to `false`.
 
 **Reminder: Output must be only `true` or `false`, unambiguous and suitable for machine logic gates.**""",
-  model="gpt-4o",
+  model="gpt-5-mini",
   output_type=ResumeFlowManagerSchema,
   model_settings=ModelSettings(
-    temperature=1,
     top_p=1,
     max_tokens=2048,
     store=True
@@ -674,11 +674,11 @@ For each Agent:
 (Real output should tailor the personal summary closely to the proposals and feedback received, written in the applicant’s own voice with more specific content in place of the placeholders.)
 
 # Important instructions and objective reminder:
-- Write the personal summary as if the applicant is describing themselves (first person: \"I\", “my”).
+- Write the personal summary as if the applicant is describing themselves (first person: \"I\", "my").
 - Only output the personal summary section for each Agent.
 - Do not output any reasoning, analysis, or process explanations.
 - Output in JSON format as specified above.""",
-  model="gpt-4o",
+  model="gpt-4.1",
   model_settings=ModelSettings(
     temperature=0.7,
     top_p=1,
@@ -844,6 +844,46 @@ Your YIELD must be a single valid JSON object matching the schema, with all requ
 class WorkflowInput(BaseModel):
   input_as_text: str
 
+def compact_agent_output_item(result_temp, pick_fields: list[str] | None = None) -> TResponseInputItem:
+  """
+  Create a compact conversation history item from an agent run result.
+
+  Preference order:
+  - result_temp.final_output.json() if available
+  - json.dumps(result_temp.final_output.model_dump()) if available
+  - fallback to str(result_temp)
+
+  Optional `pick_fields` may be provided in future to include only selected keys
+  when final_output.model_dump() returns a dict. Currently returns a single
+  assistant item with content.type 'agent_output' and text set to a JSON string.
+  """
+  try:
+    final = result_temp.final_output
+    try:
+      out_text = final.json()
+    except Exception:
+      try:
+        dumped = final.model_dump()
+        if pick_fields and isinstance(dumped, dict):
+          filtered = {k: dumped.get(k) for k in pick_fields if k in dumped}
+          out_text = json.dumps(filtered, default=str)
+        else:
+          out_text = json.dumps(dumped, default=str)
+      except Exception:
+        out_text = str(final)
+  except Exception:
+    try:
+      out_text = json.dumps(result_temp, default=str)
+    except Exception:
+      out_text = str(result_temp)
+
+  return {
+    "role": "assistant",
+    "content": [
+      {"type": "agent_output", "text": out_text}
+    ]
+  }
+
 
 # Main code entrypoint
 async def run_workflow(workflow_input: WorkflowInput):
@@ -871,7 +911,8 @@ async def run_workflow(workflow_input: WorkflowInput):
       })
     )
 
-    conversation_history.extend([item.to_input_item() for item in resume_flow_manager_result_temp.new_items])
+  # Append a compact single item for this agent run to avoid sending the entire chat history
+    conversation_history.append(compact_agent_output_item(resume_flow_manager_result_temp))
 
     resume_flow_manager_result = resume_flow_manager_result_temp.final_output.model_dump()
     
@@ -887,7 +928,7 @@ async def run_workflow(workflow_input: WorkflowInput):
         })
       )
 
-      conversation_history.extend([item.to_input_item() for item in tune_resume_to_jd_agent_result_temp.new_items])
+    conversation_history.append(compact_agent_output_item(tune_resume_to_jd_agent_result_temp))
 
       personal_statement_agent_result_temp = await Runner.run(
         personal_statement_agent,
@@ -900,7 +941,7 @@ async def run_workflow(workflow_input: WorkflowInput):
         })
       )
 
-      conversation_history.extend([item.to_input_item() for item in personal_statement_agent_result_temp.new_items])
+    conversation_history.append(compact_agent_output_item(personal_statement_agent_result_temp))
 
       resume_json_builder_agent_result_temp = await Runner.run(
         resume_json_builder_agent,
@@ -913,7 +954,7 @@ async def run_workflow(workflow_input: WorkflowInput):
         })
       )
 
-      conversation_history.extend([item.to_input_item() for item in resume_json_builder_agent_result_temp.new_items])
+    conversation_history.append(compact_agent_output_item(resume_json_builder_agent_result_temp))
 
       judge_for_improvement_result_temp = await Runner.run(
         judge_for_improvement,
@@ -926,7 +967,7 @@ async def run_workflow(workflow_input: WorkflowInput):
         })
       )
 
-      conversation_history.extend([item.to_input_item() for item in judge_for_improvement_result_temp.new_items])
+    conversation_history.append(compact_agent_output_item(judge_for_improvement_result_temp))
 
       judge_for_improvement_result = {
         "output_text": judge_for_improvement_result_temp.final_output.json(),
@@ -944,7 +985,7 @@ async def run_workflow(workflow_input: WorkflowInput):
         })
       )
 
-      conversation_history.extend([item.to_input_item() for item in improve_current_resume_agent_result_temp.new_items])
+    conversation_history.append(compact_agent_output_item(improve_current_resume_agent_result_temp))
 
       personal_statement_agent_result_temp = await Runner.run(
         personal_statement_agent,
@@ -957,7 +998,7 @@ async def run_workflow(workflow_input: WorkflowInput):
         })
       )
 
-      conversation_history.extend([item.to_input_item() for item in personal_statement_agent_result_temp.new_items])
+    conversation_history.append(compact_agent_output_item(personal_statement_agent_result_temp))
 
       resume_json_builder_agent_result_temp = await Runner.run(
         resume_json_builder_agent,
@@ -970,7 +1011,7 @@ async def run_workflow(workflow_input: WorkflowInput):
         })
       )
 
-      conversation_history.extend([item.to_input_item() for item in resume_json_builder_agent_result_temp.new_items])
+    conversation_history.append(compact_agent_output_item(resume_json_builder_agent_result_temp))
 
       judge_for_improvement_result_temp = await Runner.run(
         judge_for_improvement,
@@ -983,7 +1024,7 @@ async def run_workflow(workflow_input: WorkflowInput):
         })
       )
 
-      conversation_history.extend([item.to_input_item() for item in judge_for_improvement_result_temp.new_items])
+    conversation_history.append(compact_agent_output_item(judge_for_improvement_result_temp))
 
       judge_for_improvement_result = {
         "output_text": judge_for_improvement_result_temp.final_output.json(),

@@ -4,6 +4,8 @@ FastAPI server for resume generation using OpenAI Agents SDK.
 Single unified implementation - no old patterns, clean architecture.
 """
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,6 +29,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# PDF conversion executor (background processing)
+pdf_executor = ThreadPoolExecutor(max_workers=2)
 
 
 async def read_file_content(file: UploadFile) -> str:
@@ -232,13 +237,19 @@ async def workflow_docx(
                 status_code=500
             )
         
+        # Start PDF conversion in background (non-blocking, ~2-5s)
+        # User won't wait for this, but it'll be ready when they want to preview/download
+        pdf_path = output_path.with_suffix('.pdf')
+        asyncio.create_task(convert_docx_to_pdf_async(output_path, pdf_path))
+        
         return FileResponse(
             path=str(output_path),
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             filename=result.filename,
             headers={
                 "Cache-Control": "no-store",
-                "Content-Disposition": f'attachment; filename="{result.filename}"'
+                "Content-Disposition": f'attachment; filename="{result.filename}"',
+                "X-PDF-Filename": pdf_path.name,  # Tell frontend PDF filename
             }
         )
         
@@ -252,6 +263,148 @@ async def workflow_docx(
                 "traceback": traceback.format_exc()
             },
             status_code=500
+        )
+
+
+async def convert_docx_to_pdf_async(docx_path: Path, pdf_path: Path):
+    """
+    Convert DOCX to PDF in background (non-blocking).
+    
+    Started immediately after DOCX generation.
+    Usually completes in 2-5 seconds.
+    User doesn't wait - PDF will be ready when they want to preview/download.
+    
+    Args:
+        docx_path: Path to source DOCX file
+        pdf_path: Path to output PDF file
+    """
+    loop = asyncio.get_event_loop()
+    
+    def _convert():
+        try:
+            from docx2pdf import convert
+            convert(str(docx_path), str(pdf_path))
+            print(f"✅ PDF ready: {pdf_path.name}")
+        except Exception as e:
+            print(f"❌ PDF conversion failed: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    await loop.run_in_executor(pdf_executor, _convert)
+
+
+@app.get("/api/pdf/status/{filename}")
+async def check_pdf_status(filename: str):
+    """
+    Check if PDF is ready (non-blocking check).
+    
+    Called when user clicks "Preview PDF" or "Download PDF".
+    
+    Args:
+        filename: PDF filename to check (e.g., "JohnDoe_Resume.pdf")
+    
+    Returns:
+        - 200: PDF ready with file info
+        - 202: Still converting
+        - 404: DOCX/PDF not found
+    """
+    pdf_path = Path("outbox") / filename
+    
+    if pdf_path.exists():
+        return JSONResponse(
+            content={
+                "ok": True,
+                "ready": True,
+                "filename": filename,
+                "size": pdf_path.stat().st_size
+            },
+            status_code=200
+        )
+    else:
+        # Check if DOCX exists (PDF might still be converting)
+        docx_filename = filename.replace('.pdf', '.docx')
+        docx_path = Path("outbox") / docx_filename
+        
+        if docx_path.exists():
+            return JSONResponse(
+                content={
+                    "ok": True,
+                    "ready": False,
+                    "message": "PDF conversion in progress"
+                },
+                status_code=202
+            )
+        else:
+            return JSONResponse(
+                content={
+                    "ok": False,
+                    "ready": False,
+                    "message": "File not found"
+                },
+                status_code=404
+            )
+
+
+@app.get("/api/pdf/view/{filename}")
+async def view_pdf(filename: str):
+    """
+    Serve PDF for inline viewing (not download).
+    
+    Used by PDF preview widget in frontend.
+    
+    Args:
+        filename: PDF filename (e.g., "JohnDoe_Resume.pdf")
+    
+    Returns:
+        PDF file with inline Content-Disposition
+    """
+    pdf_path = Path("outbox") / filename
+    
+    if pdf_path.exists():
+        return FileResponse(
+            path=str(pdf_path),
+            media_type="application/pdf",
+            filename=filename,
+            headers={
+                "Cache-Control": "public, max-age=3600",
+                # inline = show in browser, not download
+                "Content-Disposition": f'inline; filename="{filename}"'
+            }
+        )
+    else:
+        return JSONResponse(
+            content={"ok": False, "message": "PDF not ready yet"},
+            status_code=404
+        )
+
+
+@app.get("/api/download/pdf/{filename}")
+async def download_pdf(filename: str):
+    """
+    Download PDF file (attachment, not inline).
+    
+    Args:
+        filename: PDF filename (e.g., "JohnDoe_Resume.pdf")
+    
+    Returns:
+        PDF file download
+    """
+    pdf_path = Path("outbox") / filename
+    
+    if pdf_path.exists():
+        return FileResponse(
+            path=str(pdf_path),
+            media_type="application/pdf",
+            filename=filename,
+            headers={
+                "Cache-Control": "public, max-age=3600",
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+    else:
+        return JSONResponse(
+            content={"ok": False, "message": "PDF not found"},
+            status_code=404
         )
 
 
