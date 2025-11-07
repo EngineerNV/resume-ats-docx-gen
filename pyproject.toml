@@ -15,11 +15,15 @@ dependencies = [
     "mcp>=1.0.0",
     "pydantic>=2.0.0",
     "openai>=1.0.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "python-multipart>=0.0.6",
 ]
 
 [project.scripts]
 resume-gen = "resume_gen.cli:main"
 resume-mcp = "resume_mcp.server:main"
+resume-api = "api.server:main"
 
 [project.optional-dependencies]
 dev = [
@@ -27,4 +31,4 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["resume_gen*", "resume_mcp*"]
+include = ["resume_gen*", "resume_mcp*", "agents*", "api*"]

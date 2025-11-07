@@ -25,6 +25,7 @@ from ..prompts import (
 )
 from .base import AgentDefinition, extract_output_text, text_item, user_message
 from .resume_context_extractor import ResumeContextResult, extract_resume_context
+# Note: ATS keyword auto-derivation has been removed to keep this PR focused on FastAPI.
 
 
 def _json_schema(name: str, schema: Dict[str, Any]) -> Dict[str, Any]:
@@ -324,7 +325,7 @@ class ResumeJsonWorkflowResult:
 class ResumeJsonWorkflow:
     """High level orchestration of resume planning and generation agents."""
 
-    def __init__(self, client: Optional[OpenAI] = None) -> None:
+    def __init__(self, client: Optional[Any] = None) -> None:
         self.client = client or create_openai_client()
 
     def run(
@@ -340,6 +341,10 @@ class ResumeJsonWorkflow:
 
         resume_context = extract_resume_context(resume_text, client=self.client)
         normalized_keywords = self._normalize_ats_keywords(ats_keywords)
+
+        # Note: We no longer auto-derive ATS keywords here. Callers should provide
+        # ats_keywords explicitly when running in job_tuning mode, or rely on
+        # upstream UI defaults. This avoids introducing new agent logic in this PR.
 
         payload: Dict[str, Any] = {
             "mode": mode,

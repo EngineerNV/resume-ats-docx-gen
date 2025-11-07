@@ -163,6 +163,151 @@ Object format:
 }
 ```
 
+## FastAPI Integration
+
+### Overview
+
+The FastAPI server (`api/server.py`) is the **primary workflow orchestrator** that integrates OpenAI agent workflows with resume generation. It provides REST API endpoints for the frontend application.
+
+### API Workflow
+
+The resume generation flows through the FastAPI server in this sequence:
+
+1. **JSON Endpoint** (`POST /api/workflow/json`)
+   - Accepts resume text and optional job description
+   - Runs agent workflow for optimization
+   - Returns optimized resume JSON (no file generation)
+
+2. **DOCX Endpoint** (`POST /api/workflow/docx`)
+   - Full workflow: optimization → filename generation → DOCX creation
+   - Returns downloadable DOCX file
+
+### Filename Agent
+
+Located in `agents/workflows/mcp_resume_agent.py`, the Filename Agent is responsible for intelligent document naming:
+
+**Purpose**: Extract candidate name and generate professional, URL-safe filenames
+
+**Functionality**:
+- Reviews optimized resume JSON
+- Intelligently extracts candidate name from `header.name`
+- Handles edge cases (missing names, special characters, etc.)
+- Generates URL-safe filenames (e.g., `jane_smith_resume.docx`)
+- Provides fallback logic for malformed data
+
+**Example Usage**:
+```python
+from agents.workflows.mcp_resume_agent import prepare_resume_for_mcp
+
+# After agent workflow generates optimized JSON
+result = prepare_resume_for_mcp(optimized_resume_json)
+
+print(result.filename)      # "jane_smith_resume.docx"
+print(result.resume_data)   # Full resume JSON
+print(result.reasoning)     # Agent's explanation
+```
+
+**Output Structure**:
+```python
+class FilenameResult:
+    filename: str          # e.g., "jane_smith_resume.docx"
+    resume_data: dict      # Complete resume JSON
+    reasoning: str         # Why this filename was chosen
+```
+
+### Direct Generation vs MCP Protocol
+
+**Important**: The FastAPI workflow uses **direct function calls**, not the MCP protocol.
+
+**Direct Generation Approach** (Current):
+```python
+from resume_mcp.tools import generate_resume_tool
+
+# Direct function call
+result = generate_resume_tool(
+    resume_data=filename_result.resume_data,
+    filename=filename_result.filename
+)
+```
+
+**Benefits**:
+- **Faster**: ~100ms performance improvement
+- **Simpler**: Fewer moving parts, easier debugging
+- **Reliable**: No inter-process communication overhead
+- **Maintainable**: Single codebase, direct imports
+
+**MCP Protocol** (Separate, Optional):
+The standalone MCP server (`resume_mcp/server.py`) exists separately for AI client integration (Claude Desktop, VS Code Copilot). It uses the Model Context Protocol for external AI assistants but is **not used** by the FastAPI workflow.
+
+### API Endpoints
+
+**Health Check**:
+```bash
+GET /
+```
+
+**Generate JSON** (optimization only):
+```bash
+POST /api/workflow/json
+Form Data:
+  - mode: "resume" | "job"
+  - resumeText: string
+  - jobDescriptionText: string (optional)
+  - atsKeywords: string (optional)
+  - context: string (optional)
+```
+
+**Generate DOCX** (full workflow):
+```bash
+POST /api/workflow/docx
+Form Data: (same as /api/workflow/json)
+Response: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+```
+
+### Running the FastAPI Server
+
+```bash
+# Using CLI command
+resume-api
+
+# Using uvicorn directly
+uvicorn api.server:app --host 0.0.0.0 --port 8000 --reload
+
+# Test health check
+curl http://localhost:8000/
+
+# Test DOCX generation
+curl -X POST http://localhost:8000/api/workflow/docx \
+  -F 'mode=resume' \
+  -F 'resumeText=...' \
+  -o resume.docx
+```
+
+### Integration Flow
+
+```
+┌──────────┐     ┌──────────────┐     ┌────────────────┐
+│ Frontend │────▶│ FastAPI      │────▶│ Agent Workflow │
+│ (Next.js)│     │ Server       │     │ (OpenAI)       │
+└──────────┘     └──────────────┘     └────────────────┘
+                        │                      │
+                        │                      ▼
+                        │              ┌────────────────┐
+                        │              │ Optimized JSON │
+                        │              └────────────────┘
+                        │                      │
+                        │                      ▼
+                        │              ┌────────────────┐
+                        │              │ Filename Agent │
+                        │              └────────────────┘
+                        │                      │
+                        │                      ▼
+                        │              ┌────────────────┐
+                        └─────────────▶│ Direct Gen     │
+                                       │ (DOCX)         │
+                                       └────────────────┘
+```
+
 ## Common Tasks
 
 ### 1. Testing Changes
