@@ -67,7 +67,7 @@ class MCPResumeAgentResult:
 
 def prepare_resume_for_mcp(
     optimized_resume: Dict[str, Any],
-    client: Optional[OpenAI] = None,
+    client: Optional[Any] = None,
 ) -> MCPResumeAgentResult:
     """
     Run the MCP Resume Agent to prepare resume for DOCX generation.

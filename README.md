@@ -4,15 +4,47 @@ A Python CLI tool that generates ATS-friendly resumes in DOCX format from JSON i
 
 ## Architecture Overview
 
-This repository provides three main components:
+This repository provides a complete resume generation system with multiple integration options:
 
-1. **CLI Tool** (`resume-gen`): Generate DOCX files directly from JSON
-2. **MCP Server** (`resume-mcp`): Model Context Protocol server for AI agent integration
-3. **FastAPI Server** (`resume-api`): REST API for frontend integration with AI agent workflows
+### 1. **FastAPI Server** (`api/server.py`) - **Primary Workflow Orchestrator**
+   - REST API endpoints for frontend integration
+   - Integrates OpenAI agent workflows for resume optimization
+   - Uses **direct function calls** to generation tool (not MCP protocol)
+   - Provides both JSON and DOCX endpoints
+   - Run with: `resume-api`
 
-## Frontend UI (Beta)
+### 2. **Agent Workflows** (`agents/workflows/`)
+   - Resume optimization and generation powered by OpenAI
+   - Filename Agent for intelligent document naming
+   - Context extraction and resume improvement
+   - Job description alignment
+   - See [`agents/README.md`](agents/README.md) for details
 
-The repository now includes a Next.js App Router frontend (`frontend/`) that collects resume inputs, supports job-tuning context, and proxies requests to the workflow APIs. See [`frontend/README.md`](frontend/README.md) for setup instructions.
+### 3. **CLI Tool** (`resume-gen`) - **Direct Generation**
+   - Standalone command-line tool
+   - Generate DOCX files directly from JSON input
+   - No API server or agents required
+   - Run with: `resume-gen render --in input.json --out output.docx`
+
+### 4. **Standalone MCP Server** (`resume_mcp/server.py`) - **Optional AI Client Integration**
+   - Model Context Protocol server for Claude Desktop, VS Code Copilot
+   - Separate from FastAPI workflow
+   - Enable AI assistants to generate resumes
+   - Run with: `python -m resume_mcp.server`
+   - See [MCP Server](#mcp-server) section below
+
+### 5. **Frontend UI** (`frontend/`) - **Beta**
+   - Next.js App Router application
+   - Communicates with FastAPI server
+   - Job tuning and resume improvement interfaces
+   - See [`frontend/README.md`](frontend/README.md) for setup
+
+**Architecture Flow:**
+```
+Frontend → FastAPI Server → Agent Workflows → Direct Generation → DOCX
+                                              ↓
+                                     Filename Agent
+```
 
 ## Features
 
