@@ -60,3 +60,6 @@ async def run_workflow(workflow_input: WorkflowInput):
     resume_extraction_agent_result = {
       "output_text": resume_extraction_agent_result_temp.final_output_as(str)
     }
+    # Return the extracted resume text (string). The orchestrator will parse or include
+    # this as needed. Use a plain string to avoid coupling to a specific schema here.
+    return resume_extraction_agent_result["output_text"]

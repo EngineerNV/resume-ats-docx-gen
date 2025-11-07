@@ -8,22 +8,14 @@ import { FileDropzone } from '../components/FileDropzone';
 import { StepIndicator, type StepState } from '../components/StepIndicator';
 import { PayloadPreview } from '../components/PayloadPreview';
 import { SubmitButtons } from '../components/SubmitButtons';
-import LoadingSpinner from '../components/LoadingSpinner';
-import PdfPreview from '../components/PdfPreview';
 import { GROUP_MAX_BYTES, JOB_MAX_FILES, MAX_TEXTAREA_LENGTH, RESUME_MAX_FILES } from '../lib/schema';
-import {
-  buildFormData,
-  computeKeywordPreview,
-  downloadBlobAsFile,
-  openBlobInNewTab,
-  validateState
-} from '../lib/utils';
-import type { FormState, KeywordPreviewItem, SuggestionPayload, UploadedFile } from '../lib/types';
+import { buildFormData, computeKeywordPreview, downloadBlobAsFile, openBlobInNewTab, validateState } from
+  '../lib/utils';
+import type { FormState, KeywordPreviewItem, UploadedFile } from '../lib/types';
 
 const RESUME_ACCEPT: Accept = {
   'application/pdf': ['.pdf'],
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-  'application/msword': ['.doc'],
   'text/plain': ['.txt'],
   'text/markdown': ['.md']
 };
@@ -43,7 +35,7 @@ const KEYWORD_FLAG = process.env.NEXT_PUBLIC_ENABLE_KEYWORDS === 'true';
 const STEP_DEFINITIONS = [
   { label: 'Inputs', description: 'Resume & optional job description' },
   { label: 'Review', description: 'Confirm text and files' },
-  { label: 'Submit', description: 'Generate suggestions or DOCX' }
+  { label: 'Submit', description: 'Build a DOCX resume' }
 ];
 
 // Represents the default client-side form payload. Having a single reference
@@ -70,12 +62,10 @@ export default function HomePage() {
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<StatusMessage | null>(null);
-  const [loadingAction, setLoadingAction] = useState<'json' | 'docx' | null>(null);
-  const [jsonResult, setJsonResult] = useState<SuggestionPayload | null>(null);
+  const [loadingAction, setLoadingAction] = useState<'docx' | null>(null);
+  // suggestions UI removed: we keep backend endpoint but no longer surface suggestions in the UI
   const [docxPreviewUrl, setDocxPreviewUrl] = useState<string | null>(null);
   const [docxFilename, setDocxFilename] = useState<string>('');
-  const [pdfFilename, setPdfFilename] = useState<string>('');
-  const [showPdfPreview, setShowPdfPreview] = useState<boolean>(false);
   const abortRef = useRef<AbortController | null>(null);
   const docxBlobRef = useRef<Blob | null>(null);
   const createIdempotencyKey = () =>
@@ -200,61 +190,7 @@ export default function HomePage() {
     abortRef.current = null;
   };
 
-  // Full JSON suggestion flow: validate, POST to API, surface success/errors,
-  // and persist the response so the UI can render the panel below.
-  const submitJson = async () => {
-    const valid = runValidation();
-    if (!valid) {
-      setCurrentStep(0);
-      return;
-    }
-    setCurrentStep(2);
-    resetAbort();
-    setLoadingAction('json');
-    setStatus({ type: 'info', message: 'Sending data for suggestions…' });
-    const controller = new AbortController();
-    abortRef.current = controller;
-    try {
-      const response = await fetch('/api/workflow/json', {
-        method: 'POST',
-        body: buildFormData(state),
-        cache: 'no-store',
-        signal: controller.signal,
-        headers: {
-          'X-Idempotency-Key': createIdempotencyKey()
-        }
-      });
-
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) {
-        const message = payload?.message ?? 'Unable to fetch suggestions.';
-        if (payload?.fieldErrors) {
-          const normalized = Object.fromEntries(
-            Object.entries(payload.fieldErrors as Record<string, unknown>).map(([key, val]) => [
-              key,
-              Array.isArray(val) && typeof val[0] === 'string' ? val[0] : 'Please review this field.'
-            ])
-          );
-          setFieldErrors(normalized);
-        }
-        setStatus({ type: 'error', message });
-        setJsonResult(null);
-        return;
-      }
-
-      setJsonResult(payload.data as SuggestionPayload);
-      setStatus({ type: 'success', message: 'Suggestions ready below.' });
-    } catch (error) {
-      if ((error as DOMException).name === 'AbortError') {
-        setStatus({ type: 'info', message: 'Request cancelled.' });
-      } else {
-        setStatus({ type: 'error', message: 'A network error occurred. Please try again.' });
-      }
-    } finally {
-      setLoadingAction(null);
-      abortRef.current = null;
-    }
-  };
+  // suggestion flow removed from UI.
 
   // DOCX download mirrors the JSON path but additionally captures the Blob so
   // the user can preview in another tab if desired.
@@ -312,15 +248,12 @@ export default function HomePage() {
       setDocxFilename(filename);
       
       // Get PDF filename from custom header
-      const pdfName = response.headers.get('X-PDF-Filename');
-      if (pdfName) {
-        setPdfFilename(pdfName);
-      }
+      // We no longer generate PDFs; ignore any PDF headers and only handle DOCX.
       
       const objectUrl = URL.createObjectURL(blob);
       setDocxPreviewUrl(objectUrl);
       downloadBlobAsFile(blob, filename);
-      setStatus({ type: 'success', message: `✅ DOCX downloaded: ${filename}. PDF conversion started in background.` });
+  setStatus({ type: 'success', message: `✅ DOCX downloaded: ${filename}.` });
     } catch (error) {
       if ((error as DOMException).name === 'AbortError') {
         setStatus({ type: 'info', message: 'Request cancelled.' });
@@ -343,10 +276,19 @@ export default function HomePage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-10 px-4 py-10 sm:px-6 lg:px-8">
       <header className="space-y-4 text-center">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Resume Workflow</h1>
+        <div className="mx-auto flex items-center justify-center">
+          <img 
+        src="/baileyproject.png" 
+        alt="Bailey Project Logo" 
+        className="h-52 w-64 object-cover"
+          />
+        </div>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Ask Bailey</h1>
         <p className="mx-auto max-w-2xl text-balance text-sm text-slate-600 dark:text-slate-300">
-          Collect resume details, optionally include a job description, review the payload, then request AI-powered suggestions or
-          download a DOCX you can submit immediately.
+          Tech Resume's built from the inspiration of UOP's Best Career Resource.
+          <br />
+          Created with Multi-Agent Architecture - to help college students and professionals for free.
+          
         </p>
       </header>
 
@@ -468,15 +410,9 @@ export default function HomePage() {
             <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Submit</h2>
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                Send your inputs to receive structured AI suggestions or to download a refreshed DOCX resume. Requests run locally first
-                and proxy to the backend service when available.
+                Send your inputs to build a DOCX resume. Requests run locally first and proxy to the backend service when available.
               </p>
-              <SubmitButtons
-                onGetSuggestions={submitJson}
-                onDownloadDocx={submitDocx}
-                loadingAction={loadingAction}
-                disabled={loadingAction !== null}
-              />
+              <SubmitButtons onBuildResume={submitDocx} loadingAction={loadingAction} disabled={loadingAction !== null} />
               {loadingAction && (
                 <button
                   type="button"
@@ -503,40 +439,7 @@ export default function HomePage() {
               </div>
             )}
 
-            {jsonResult && (
-              <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <header>
-                  <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Suggestion summary</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Quick insights tailored to your inputs.</p>
-                </header>
-                <article className="space-y-4">
-                  <div>
-                    <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Summary</h4>
-                    <p className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">{jsonResult.summary}</p>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Highlights</h4>
-                    <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-200" role="list">
-                      {jsonResult.highlights.map((item) => (
-                        <li key={item} className="rounded-xl bg-slate-100 px-3 py-2 dark:bg-slate-800/70">
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Recommendations</h4>
-                    <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-200" role="list">
-                      {jsonResult.recommendations.map((item) => (
-                        <li key={item} className="rounded-xl bg-brand/10 px-3 py-2 text-brand dark:bg-brand/20 dark:text-brand-dark">
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </article>
-              </section>
-            )}
+            {/* Suggestions UI removed */}
 
             {docxPreviewUrl && (
               <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -545,7 +448,7 @@ export default function HomePage() {
                   DOCX: <span className="font-mono text-xs">{docxFilename}</span>
                 </p>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  PDF conversion started in background. Click preview to check status.
+                  Your DOCX is ready. Use the buttons below to download or open it.
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <button
@@ -562,15 +465,7 @@ export default function HomePage() {
                   >
                     🔗 Open DOCX in Tab
                   </button>
-                  {pdfFilename && (
-                    <button
-                      type="button"
-                      onClick={() => setShowPdfPreview(true)}
-                      className="rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950"
-                    >
-                      👁️ Preview PDF
-                    </button>
-                  )}
+                  {/* PDF previews disabled: we return DOCX only. */}
                 </div>
               </section>
             )}
@@ -588,13 +483,7 @@ export default function HomePage() {
         )}
       </section>
       
-      {/* PDF Preview Modal */}
-      {showPdfPreview && pdfFilename && (
-        <PdfPreview
-          pdfFilename={pdfFilename}
-          onClose={() => setShowPdfPreview(false)}
-        />
-      )}
+      {/* PDF preview disabled - DOCX only response */}
     </main>
   );
 }

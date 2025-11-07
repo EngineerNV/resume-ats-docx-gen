@@ -19,8 +19,9 @@ import json
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-from .resume_json_creator import run_workflow as run_resume_json_workflow, WorkflowInput
-from .job_research_agent import run_workflow as run_job_research_workflow
+from .resume_json_creator import run_workflow as run_resume_json_workflow, WorkflowInput as ResumeJsonWorkflowInput
+from .job_research_agent import run_workflow as run_job_research_workflow, WorkflowInput as JobResearchWorkflowInput
+from .resume_context_extractor import run_workflow as run_resume_extraction_workflow, WorkflowInput as ResumeExtractionWorkflowInput
 
 
 @dataclass
@@ -128,9 +129,9 @@ class ResumeOrchestrator:
     
     async def _run_job_research(self, input_text: str) -> str:
         """Run job research workflow and return clean output."""
-        workflow_input = WorkflowInput(input_as_text=input_text)
+        workflow_input = JobResearchWorkflowInput(input_as_text=input_text)
         result = await run_job_research_workflow(workflow_input)
-        
+
         # The job research workflow returns a string with ATS and leadership insights
         # We just pass it through
         return str(result) if result else ""
@@ -142,7 +143,28 @@ class ResumeOrchestrator:
         The resume_json_creator workflow runs all agents and returns
         the final optimized JSON from the judge_for_improvement agent.
         """
-        workflow_input = WorkflowInput(input_as_text=input_text)
+        # First: try to run the Resume/Context Extractor to produce a structured
+        # extract of the resume. If it runs successfully, include its output when
+        # calling the resume JSON workflow so downstream agents have structured data.
+        try:
+            extractor_input = ResumeExtractionWorkflowInput(input_as_text=input_text)
+            extracted = await run_resume_extraction_workflow(extractor_input)
+        except Exception:
+            # If extraction fails for any reason, fall back to raw input_text
+            extracted = None
+
+        # Build the input for the resume JSON workflow. Prefer the structured
+        # extraction output when available.
+        if extracted:
+            # If extractor returned a string (JSON-like), include it explicitly.
+            # The resume_json_creator workflow expects text input, so pass both
+            # the original text and the extracted JSON to give agents the best
+            # possible context.
+            combined_input = f"EXTRACTED_RESUME_JSON:\n{extracted}\n\nORIGINAL_RESUME_TEXT:\n{input_text}"
+        else:
+            combined_input = input_text
+
+        workflow_input = ResumeJsonWorkflowInput(input_as_text=combined_input)
         optimized_json = await run_resume_json_workflow(workflow_input)
         return optimized_json
 
