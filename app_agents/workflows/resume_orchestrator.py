@@ -64,9 +64,7 @@ class ResumeOrchestrator:
         Returns:
             ResumeWorkflowResult with optimized JSON ready for DOCX generation
         """
-        # Determine mode
-        has_job_description = bool(job_description and job_description.strip())
-        mode = "job_tuning" if has_job_description else "resume_improvement"
+        mode, has_job_description = self._derive_mode(job_description)
         
         job_research_output = None
         
@@ -89,10 +87,7 @@ class ResumeOrchestrator:
         filename = self._generate_filename(optimized_resume)
         
         # Step 4: Create reasoning
-        candidate_name = optimized_resume.get('header', {}).get('name', 'candidate')
-        reasoning = f"Generated {mode} resume for {candidate_name}"
-        if has_job_description:
-            reasoning += " aligned to job requirements"
+        reasoning = self._build_reasoning(mode, optimized_resume, has_job_description)
         
         return ResumeWorkflowResult(
             optimized_resume_json=optimized_resume,
@@ -102,6 +97,12 @@ class ResumeOrchestrator:
             reasoning=reasoning,
         )
     
+    def _derive_mode(self, job_description: Optional[str]) -> tuple[str, bool]:
+        """Return workflow mode + bool flag if job inputs are present."""
+        has_job_description = bool(job_description and job_description.strip())
+        mode = "job_tuning" if has_job_description else "resume_improvement"
+        return mode, has_job_description
+
     def _build_job_research_input(self, job_description: str) -> str:
         """Build input for job research workflow."""
         return f"JOB DESCRIPTION:\n{job_description}"
@@ -168,7 +169,7 @@ class ResumeOrchestrator:
         optimized_json = await run_resume_json_workflow(workflow_input)
         return optimized_json
 
-    
+
     def _generate_filename(self, resume_json: Dict[str, Any]) -> str:
         """
         Generate intelligent filename from resume.
@@ -184,6 +185,19 @@ class ResumeOrchestrator:
         except Exception:
             pass
         return "resume.docx"
+
+    def _build_reasoning(
+        self,
+        mode: str,
+        optimized_resume: Dict[str, Any],
+        has_job_description: bool,
+    ) -> str:
+        """Summarize why the workflow produced the given output."""
+        candidate_name = optimized_resume.get('header', {}).get('name', 'candidate')
+        message = f"Generated {mode} resume for {candidate_name}"
+        if has_job_description:
+            message += " aligned to job requirements"
+        return message
 
 
 # Synchronous wrapper

@@ -14,6 +14,12 @@ def cli():
     pass
 
 
+def _warn_if_non_json(path: Path) -> None:
+    """Emit a friendly warning when inputs lack a .json extension."""
+    if path.suffix.lower() != '.json':
+        click.echo(f"Warning: Input file '{path}' does not have .json extension.")
+
+
 @cli.command()
 @click.option('--in', 'input_file', required=True, type=click.Path(exists=True),
               help='Input JSON file path')
@@ -29,9 +35,7 @@ def render(input_file, output_file):
         input_path = Path(input_file)
         output_path = Path(output_file)
         
-        # Warn if input doesn't have .json extension
-        if not input_path.suffix.lower() == '.json':
-            click.echo(f"Warning: Input file '{input_file}' does not have .json extension.")
+        _warn_if_non_json(input_path)
         
         # Ensure output directory exists
         output_path.parent.mkdir(parents=True, exist_ok=True)

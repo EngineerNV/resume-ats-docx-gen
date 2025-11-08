@@ -1,6 +1,9 @@
 import { formDataSchema, GROUP_MAX_BYTES, MAX_TEXTAREA_LENGTH } from './schema';
 import type { FormState, KeywordPreviewItem, UploadedFile } from './types';
 
+/**
+ * Format a number of bytes into a short human readable label such as "10 MB".
+ */
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB'];
@@ -9,10 +12,16 @@ export function formatBytes(bytes: number): string {
   return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
+/**
+ * Calculate the combined size of all uploaded files in bytes.
+ */
 export function totalBytes(files: UploadedFile[]): number {
   return files.reduce((sum, item) => sum + item.file.size, 0);
 }
 
+/**
+ * Build a FormData payload that mirrors the FastAPI form contract.
+ */
 export function buildFormData(state: FormState): FormData {
   const fd = new FormData();
   fd.set('mode', state.mode);
@@ -31,6 +40,9 @@ export function buildFormData(state: FormState): FormData {
   return fd;
 }
 
+/**
+ * Trigger a download for the provided blob. Cleans up the object URL once used.
+ */
 export function downloadBlobAsFile(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -42,12 +54,18 @@ export function downloadBlobAsFile(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Open a blob in a new browser tab via an object URL.
+ */
 export function openBlobInNewTab(blob: Blob) {
   const url = URL.createObjectURL(blob);
   window.open(url, '_blank', 'noopener');
   setTimeout(() => URL.revokeObjectURL(url), 1000 * 30);
 }
 
+/**
+ * Run shared zod validation for the form state.
+ */
 export function validateState(state: FormState) {
   const payload = {
     mode: state.mode,
@@ -61,14 +79,23 @@ export function validateState(state: FormState) {
   return formDataSchema.safeParse(payload);
 }
 
+/**
+ * Remaining character counter for large textareas.
+ */
 export function remainingCharacters(value: string): number {
   return Math.max(0, MAX_TEXTAREA_LENGTH - value.length);
 }
 
+/**
+ * Helper for displaying "current / max" file size labels.
+ */
 export function totalLimitForLabel(files: UploadedFile[]): string {
   return `${formatBytes(totalBytes(files))} / ${formatBytes(GROUP_MAX_BYTES)}`;
 }
 
+/**
+ * Generate a sorted list of keyword frequencies for the lightweight preview UI.
+ */
 export function computeKeywordPreview(text: string): KeywordPreviewItem[] {
   const tokens = text
     .toLowerCase()
