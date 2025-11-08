@@ -4,8 +4,8 @@ import { formDataSchema, ValidatedFormData, NamedBlob } from '../../../../lib/sc
 
 export const runtime = 'nodejs';
 
-const USE_MOCK = process.env.USE_MOCK !== 'false';
-const PY_WORKFLOW_DOCX_URL = process.env.PY_WORKFLOW_DOCX_URL;
+// ...existing code...
+const PY_WORKFLOW_DOCX_URL = process.env.NEXT_PUBLIC_PY_WORKFLOW_DOCX_URL;
 
 function isFile(value: unknown): value is File {
   return typeof File !== 'undefined' && value instanceof File;
@@ -69,36 +69,8 @@ export async function POST(request: Request) {
   }
 
   const data = validation.data;
-  // Log runtime mode to help debug whether we're using the mock branch or proxy
-  console.log('[workflow/docx] USE_MOCK=', USE_MOCK, 'PY_WORKFLOW_DOCX_URL=', PY_WORKFLOW_DOCX_URL);
-
-  // Basic payload summary for debugging (don't log full resume text in prod)
-  console.log('[workflow/docx] payload summary:', {
-    mode: data.mode,
-    resumeTextLength: data.resumeText ? data.resumeText.length : 0,
-    contextLength: data.context ? data.context.length : 0,
-    jobDescriptionTextLength: data.jobDescriptionText ? data.jobDescriptionText.length : 0,
-    resumeFiles: (data.resumeFiles as File[]).map((f) => (f as NamedBlob).name ?? 'unnamed'),
-    jobDescriptionFiles: (data.jobDescriptionFiles as File[]).map((f) => (f as NamedBlob).name ?? 'unnamed')
-  });
-
-  if (USE_MOCK || !PY_WORKFLOW_DOCX_URL) {
-    // Generate a lightweight DOCX on the fly so the mock flow remains binary-compatible
-    // without needing to ship a static artifact in the repository.
-    const buffer = await createMockDocx(data);
-    console.log('[workflow/docx] returning mock DOCX (filename=resume.docx, size=', buffer.byteLength, ')');
-    // Next/Edge runtime expects BodyInit-compatible types; convert Node Buffer -> ArrayBuffer
-    const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-    const uint8 = new Uint8Array(arrayBuffer);
-    // Cast to any to satisfy NextResponse typing in the Node.js runtime environment
-    return new NextResponse(uint8 as any, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'Content-Disposition': 'attachment; filename="resume.docx"',
-        'Cache-Control': 'no-store'
-      }
-    });
+  if (!PY_WORKFLOW_DOCX_URL) {
+    return NextResponse.json({ ok: false, code: 'CONFIG_ERROR', message: 'PY_WORKFLOW_DOCX_URL is not set.' }, { status: 500 });
   }
 
   const proxyFormData = toProxyFormData(data);

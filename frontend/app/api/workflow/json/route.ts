@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
-import suggestionsMock from '../../../../mocks/suggestions.json';
+// ...existing code...
 import { formDataSchema, ValidatedFormData } from '../../../../lib/schema';
 import { ZodError } from 'zod';
 import type { SafeParseReturnType } from 'zod';
 
-const USE_MOCK = process.env.USE_MOCK !== 'false';
-const PY_WORKFLOW_JSON_URL = process.env.PY_WORKFLOW_JSON_URL;
+// ...existing code...
+const PY_WORKFLOW_JSON_URL = process.env.NEXT_PUBLIC_PY_WORKFLOW_JSON_URL;
 
-type SuggestionsResponse = typeof suggestionsMock;
+// ...existing code...
 
 function isFile(value: unknown): value is File {
   return typeof File !== 'undefined' && value instanceof File;
@@ -95,8 +95,8 @@ export async function POST(request: Request) {
 
   const data = validation.data;
 
-  if (USE_MOCK || !PY_WORKFLOW_JSON_URL) {
-    return NextResponse.json({ ok: true, data: suggestionsMock as SuggestionsResponse }, { status: 200 });
+  if (!PY_WORKFLOW_JSON_URL) {
+    return NextResponse.json({ ok: false, code: 'CONFIG_ERROR', message: 'PY_WORKFLOW_JSON_URL is not set.' }, { status: 500 });
   }
 
   const proxyFormData = toProxyFormData(data);

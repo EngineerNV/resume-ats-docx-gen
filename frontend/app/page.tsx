@@ -260,9 +260,14 @@ export default function HomePage() {
       const blob = await response.blob();
       docxBlobRef.current = blob;
       
-      // Get filename from Content-Disposition header
-      const contentDisposition = response.headers.get('Content-Disposition');
-      const filename = contentDisposition?.match(/filename="(.+)"/)?.[1] || 'resume.docx';
+      // Get filename from content-disposition header (lowercase for compatibility)
+      const contentDisposition = response.headers.get('content-disposition');
+      if (process.env.NODE_ENV !== 'production') {
+        // Log header value for debugging in Next.js (client-side)
+        console.log('[DOCX] content-disposition header:', contentDisposition);
+      }
+      const match = contentDisposition?.match(/filename="(.+)"/);
+      const filename = match ? match[1] : 'resume.docx';
       setDocxFilename(filename);
       
       // Get PDF filename from custom header
@@ -494,13 +499,6 @@ export default function HomePage() {
                     className="rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950"
                   >
                     📥 Download DOCX again
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => docxBlobRef.current && openBlobInNewTab(docxBlobRef.current)}
-                    className="rounded-full border border-brand px-5 py-2 text-sm font-semibold text-brand hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-brand-dark dark:focus-visible:ring-offset-slate-950"
-                  >
-                    🔗 Open DOCX in Tab
                   </button>
                   {/* PDF previews disabled: we return DOCX only. */}
                 </div>
