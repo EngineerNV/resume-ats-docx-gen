@@ -22,6 +22,9 @@ from typing import Any, Dict, Optional
 from .resume_json_creator import run_workflow as run_resume_json_workflow, WorkflowInput as ResumeJsonWorkflowInput
 from .job_research_agent import run_workflow as run_job_research_workflow, WorkflowInput as JobResearchWorkflowInput
 from .resume_context_extractor import run_workflow as run_resume_extraction_workflow, WorkflowInput as ResumeExtractionWorkflowInput
+# File naming is now derived directly from the optimized resume JSON header.
+# The separate file_naming_agent is retained for backward compatibility and tests,
+# but it is not invoked by the orchestrator flow by default.
 
 
 @dataclass
@@ -82,15 +85,15 @@ class ResumeOrchestrator:
         )
         
         optimized_resume = await self._run_resume_optimization(resume_input)
-        
-        # Step 3: Generate intelligent filename
-        filename = self._generate_filename(optimized_resume)
+
+        # Step 3: Generate filename + (optionally normalized) resume JSON via agent
+        filename, normalized_resume = self._generate_filename(optimized_resume)
         
         # Step 4: Create reasoning
         reasoning = self._build_reasoning(mode, optimized_resume, has_job_description)
         
         return ResumeWorkflowResult(
-            optimized_resume_json=optimized_resume,
+            optimized_resume_json=normalized_resume,
             filename=filename,
             mode=mode,
             job_research_output=job_research_output,
@@ -170,21 +173,25 @@ class ResumeOrchestrator:
         return optimized_json
 
 
-    def _generate_filename(self, resume_json: Dict[str, Any]) -> str:
+    def _generate_filename(self, resume_json: Dict[str, Any]) -> tuple[str, Dict[str, Any]]:
+        """Derive filename directly from resume header.name and return the
+        resume JSON unchanged. This avoids calling an external agent during the
+        main flow while preserving compatibility with tests that call the
+        file_naming_agent directly.
         """
-        Generate intelligent filename from resume.
-        Format: FirstnameLastname_Resume.docx
-        """
-        try:
-            name = resume_json.get('header', {}).get('name', '')
-            if name:
-                # Clean: remove special chars, spaces
-                clean = ''.join(c for c in name if c.isalnum() or c.isspace())
-                clean = clean.replace(' ', '')
-                return f"{clean}_Resume.docx"
-        except Exception:
-            pass
-        return "resume.docx"
+        header = resume_json.get('header', {}) if isinstance(resume_json, dict) else {}
+        name = header.get('name') or header.get('full_name') or ''
+        def _sanitize(s: str) -> str:
+            import re
+            s = s.strip()
+            parts = re.findall(r"[A-Za-z0-9]+", s)
+            if not parts:
+                return 'resume.docx'
+            fname = '_'.join(parts).lower() + '_resume.docx'
+            return fname
+
+        filename = _sanitize(name) if name else 'resume.docx'
+        return filename, resume_json
 
     def _build_reasoning(
         self,

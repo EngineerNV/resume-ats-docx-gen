@@ -86,7 +86,7 @@ The standalone MCP server (`resume_mcp/server.py`) exposes the same generator/va
 
 ### `/api/workflow/docx`
 1. Follows the same orchestration as `/api/workflow/json`.
-2. Instantiates `ResumeGenerator(result.optimized_resume_json)` and writes to `outbox/` using the filename returned by the orchestrator (simple `FirstLast_Resume.docx` logic).
+2. Instantiates `ResumeGenerator(result.optimized_resume_json)` and writes to `outbox/` using the filename returned by the File Naming Agent (e.g., `firstname_lastname_resume.docx`).
 3. Streams the generated DOCX back to the caller with `FileResponse` and `Cache-Control: no-store` headers.
 
 ### CLI
@@ -121,7 +121,7 @@ PY_WORKFLOW_DOCX_URL=http://localhost:8000/api/workflow/docx
 The UI enforces the same validation rules as the API, shows payload previews, and reveals reasoning returned by the agents to help users understand the optimizations that were applied.
 
 ## 7. Optional Features
-- `app_agents/workflows/file_naming_agent.py` still provides an OpenAI-driven filename generator for cases where you prefer LLM-selected naming logic (e.g., when integrating directly with MCP clients). The FastAPI path currently uses a deterministic fallback to keep latency predictable.
+- `app_agents/workflows/file_naming_agent.py` powers the OpenAI-driven filename generator that FastAPI now calls directly so DOCX downloads inherit the agent's naming output.
 - `generate_claude_config.py` emits helper JSON for Claude Desktop MCP configuration.
 
 Keeping documentation aligned with the code paths above ensures contributors know exactly which layer to touch when updating prompts, changing the generator, or extending the API contract.

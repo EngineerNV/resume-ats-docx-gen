@@ -118,6 +118,10 @@ resume_flow_manager = Agent(
     store=True
   )
 )
+# NOTE: This agent now exists mostly for backwards compatibility with the
+# original Agent Builder workflow. The FastAPI layer + ResumeOrchestrator
+# already decide whether we're in "job" vs "resume" mode before invoking this
+# workflow, so the boolean output is effectively informational today.
 
 
 tune_resume_to_jd_agent = Agent(

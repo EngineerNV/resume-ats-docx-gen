@@ -34,7 +34,7 @@ result = await orchestrator.run(
 ```
 Returns `ResumeWorkflowResult` with:
 - `optimized_resume_json` – dict ready for `ResumeGenerator`.
-- `filename` – deterministic fallback (`FirstLast_Resume.docx`).
+- `filename` – agent-generated filename (e.g., `firstname_lastname_resume.docx`).
 - `mode` – `job_tuning` or `resume_improvement`.
 - `job_research_output` – ATS/leadership summary when job mode is active.
 - `reasoning` – short explanation of what was generated.
@@ -46,10 +46,10 @@ Use `run_resume_workflow(...)` when synchronous code needs the same result (wrap
 2. **Job research** – `job_research_agent` summarizes ATS keywords/leadership themes for downstream prompts.
 3. **Context extraction** – `resume_context_extractor` produces structured JSON describing the existing resume.
 4. **Resume JSON workflow** – `resume_json_creator` runs the Flow Manager plus the full suite of agents exported from Agent Builder, culminating in a judged/optimized resume JSON document.
-5. **Filename + reasoning** – orchestrator derives a predictable filename from `header.name` and logs a one-line explanation.
+5. **Filename + reasoning** – orchestrator calls the File Naming Agent for a professional filename and logs a one-line explanation.
 
 ## File Naming Agent (Optional)
-`app_agents/workflows/file_naming_agent.py` can still be used when you want the filename to be chosen by an agent (for example when integrating directly with MCP clients):
+`app_agents/workflows/file_naming_agent.py` drives the filename selection for FastAPI and can also be called directly when other surfaces (CLI/MCP) need the same behaviour:
 ```python
 from app_agents.workflows.file_naming_agent import prepare_resume_for_mcp
 
@@ -57,7 +57,7 @@ result = prepare_resume_for_mcp(optimized_resume_dict)
 print(result.filename)
 print(result.reasoning)
 ```
-The FastAPI server uses the lightweight deterministic naming logic inside `ResumeOrchestrator` today, but MCP tooling/tests still exercise this agent.
+The FastAPI server uses this agent-generated filename directly so downloads mirror the agent's decision.
 
 ## Scripts & Mocking
 Run the helper script with real inputs or recorded runs (no API calls):

@@ -8,7 +8,8 @@ This script starts the FastAPI server with the OpenAI Agents SDK integration.
 import sys
 import subprocess
 from pathlib import Path
-
+from dotenv import load_dotenv
+load_dotenv()
 
 def check_env():
     """Check if .env file exists."""
@@ -50,7 +51,7 @@ def main():
     try:
         subprocess.run([
             sys.executable, "-m", "uvicorn",
-            "api.server_v2:app",
+            "api.server:app",
             "--host", "0.0.0.0",
             "--port", "8000",
             "--reload"

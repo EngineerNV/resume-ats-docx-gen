@@ -69,12 +69,29 @@ export async function POST(request: Request) {
   }
 
   const data = validation.data;
+  // Log runtime mode to help debug whether we're using the mock branch or proxy
+  console.log('[workflow/docx] USE_MOCK=', USE_MOCK, 'PY_WORKFLOW_DOCX_URL=', PY_WORKFLOW_DOCX_URL);
+
+  // Basic payload summary for debugging (don't log full resume text in prod)
+  console.log('[workflow/docx] payload summary:', {
+    mode: data.mode,
+    resumeTextLength: data.resumeText ? data.resumeText.length : 0,
+    contextLength: data.context ? data.context.length : 0,
+    jobDescriptionTextLength: data.jobDescriptionText ? data.jobDescriptionText.length : 0,
+    resumeFiles: (data.resumeFiles as File[]).map((f) => (f as NamedBlob).name ?? 'unnamed'),
+    jobDescriptionFiles: (data.jobDescriptionFiles as File[]).map((f) => (f as NamedBlob).name ?? 'unnamed')
+  });
 
   if (USE_MOCK || !PY_WORKFLOW_DOCX_URL) {
     // Generate a lightweight DOCX on the fly so the mock flow remains binary-compatible
     // without needing to ship a static artifact in the repository.
     const buffer = await createMockDocx(data);
-    return new NextResponse(buffer, {
+    console.log('[workflow/docx] returning mock DOCX (filename=resume.docx, size=', buffer.byteLength, ')');
+    // Next/Edge runtime expects BodyInit-compatible types; convert Node Buffer -> ArrayBuffer
+    const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+    const uint8 = new Uint8Array(arrayBuffer);
+    // Cast to any to satisfy NextResponse typing in the Node.js runtime environment
+    return new NextResponse(uint8 as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -111,22 +128,41 @@ export async function POST(request: Request) {
         { status: response.status }
       );
     }
+    // Log upstream response info to help debugging filename/header issues
+    console.log('[workflow/docx] upstream response status=', response.status);
+    try {
+      console.log('[workflow/docx] upstream Content-Disposition=', response.headers.get('Content-Disposition'));
+      console.log('[workflow/docx] upstream Content-Type=', response.headers.get('Content-Type'));
+    } catch (err) {
+      console.warn('[workflow/docx] failed reading upstream headers', err);
+    }
 
     const headersOut = new Headers(response.headers);
-    headersOut.set(
-      'Content-Disposition',
-      headersOut.get('Content-Disposition') ?? 'attachment; filename="resume.docx"'
-    );
+    // Ensure we always have a Content-Disposition; prefer upstream if present
+    const upstreamCD = headersOut.get('Content-Disposition');
+    if (upstreamCD) {
+      headersOut.set('Content-Disposition', upstreamCD);
+    } else {
+      headersOut.set('Content-Disposition', 'attachment; filename="resume.docx"');
+    }
+
     headersOut.set('Cache-Control', 'no-store');
     headersOut.set('Content-Type',
       headersOut.get('Content-Type') ?? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     );
+
+    console.log('[workflow/docx] returning proxied response with headers:', {
+      'Content-Disposition': headersOut.get('Content-Disposition'),
+      'Content-Type': headersOut.get('Content-Type'),
+      'Status': response.status
+    });
 
     return new NextResponse(response.body, {
       status: response.status,
       headers: headersOut
     });
   } catch (error) {
+    console.error('[workflow/docx] network error when proxying to PY_WORKFLOW_DOCX_URL=', PY_WORKFLOW_DOCX_URL, error);
     return NextResponse.json(
       { ok: false, code: 'NETWORK_ERROR', message: 'Failed to reach workflow service.' },
       { status: 502 }

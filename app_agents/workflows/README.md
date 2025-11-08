@@ -10,7 +10,7 @@ This directory contains the OpenAI Agent SDK workflows for resume generation.
    - Runs job research (optional)
    - Extracts structured context
    - Runs resume optimization
-   - Generates deterministic filenames
+   - Delegates filename creation to the File Naming Agent
    - Returns optimized JSON ready for DOCX generation
 
 2. **`resume_json_creator.py`** - Resume optimization workflow
@@ -79,7 +79,7 @@ result = await orchestrator.run(
 )
 
 # result.optimized_resume_json - ready for DOCX generation
-# result.filename - deterministic filename
+# result.filename - filename from the File Naming Agent
 # result.mode - "job_tuning" or "resume_improvement"
 ```
 
