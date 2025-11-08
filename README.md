@@ -32,7 +32,7 @@ resume-ats-docx-gen/
 ## Architecture Overview
 ```
                 ┌────────────────────────────┐
-User Input →    │  FastAPI Server (api/)     │  → JSON suggestions (/api/workflow/json)
+User Input →    │  FastAPI Server (api/)     │  
 (CLI | UI)      │  • combines text + uploads │
                 │  • instantiates            │
                 │    ResumeOrchestrator      │
@@ -89,6 +89,15 @@ pip install -e .[dev]
 ### 1. CLI – JSON → DOCX
 ```bash
 resume-gen render --in example_resume.json --out outbox/my_resume.docx
+```
+
+Need help producing valid JSON quickly? See the ChatGPT helper prompts in `helper_prompts/`:
+- `helper_prompts/chatgpt_resume_json_builder_prompt.md` – paste into ChatGPT to enter "Resume JSON Builder" mode. It will collect your resume and optional job description, then output schema-compliant JSON you can feed directly into the CLI.
+- `helper_prompts/chatgpt_setup_troubleshooting_qna.md` – guided Q&A to diagnose environment setup issues (venv, FastAPI, frontend, CLI, MCP).
+
+Once you have your JSON (e.g., saved as `my_resume.json`), render it:
+```bash
+resume-gen render --in my_resume.json --out outbox/my_resume.docx
 ```
 
 ### 2. FastAPI server
