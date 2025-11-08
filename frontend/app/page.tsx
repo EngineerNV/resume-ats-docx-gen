@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTheme } from 'next-themes';
 import type { Accept } from 'react-dropzone';
 import { ModeSlider } from '../components/ModeSlider';
 import { TextSection } from '../components/TextSection';
@@ -72,6 +73,8 @@ export default function HomePage() {
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const [themeMounted, setThemeMounted] = useState(false);
 
   // Revoke any object URLs we create to avoid leaking resources when the user
   // leaves the page or when a new preview replaces the old one.
@@ -82,6 +85,10 @@ export default function HomePage() {
       }
     };
   }, [docxPreviewUrl]);
+
+  useEffect(() => {
+    setThemeMounted(true);
+  }, []);
 
   // Derive UI metadata for the stepper. We memoize so the StepIndicator only
   // re-renders when the current index changes rather than on every keystroke.
@@ -190,6 +197,17 @@ export default function HomePage() {
     abortRef.current = null;
   };
 
+  const resetForm = () => {
+    resetAbort();
+    resetDocxPreview();
+    setState(INITIAL_STATE);
+    setCurrentStep(0);
+    setFieldErrors({});
+    setStatus(null);
+    setLoadingAction(null);
+    setDocxFilename('');
+  };
+
   // suggestion flow removed from UI.
 
   // DOCX download mirrors the JSON path but additionally captures the Blob so
@@ -242,9 +260,14 @@ export default function HomePage() {
       const blob = await response.blob();
       docxBlobRef.current = blob;
       
-      // Get filename from Content-Disposition header
-      const contentDisposition = response.headers.get('Content-Disposition');
-      const filename = contentDisposition?.match(/filename="(.+)"/)?.[1] || 'resume.docx';
+      // Get filename from content-disposition header (lowercase for compatibility)
+      const contentDisposition = response.headers.get('content-disposition');
+      if (process.env.NODE_ENV !== 'production') {
+        // Log header value for debugging in Next.js (client-side)
+        console.log('[DOCX] content-disposition header:', contentDisposition);
+      }
+      const match = contentDisposition?.match(/filename="(.+)"/);
+      const filename = match ? match[1] : 'resume.docx';
       setDocxFilename(filename);
       
       // Get PDF filename from custom header
@@ -273,8 +296,27 @@ export default function HomePage() {
     }
   };
 
+  const currentTheme = themeMounted ? (theme === 'system' ? resolvedTheme : theme) : 'light';
+  const toggleTheme = () => {
+    if (!themeMounted) return;
+    setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+  };
+
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-10 px-4 py-10 sm:px-6 lg:px-8">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        >
+          <span role="img" aria-hidden="true">
+            {currentTheme === 'dark' ? '🌙' : '☀️'}
+          </span>
+          {currentTheme === 'dark' ? 'Dark mode' : 'Light mode'}
+        </button>
+      </div>
+
       <header className="space-y-4 text-center">
         <div className="mx-auto flex items-center justify-center">
           <img 
@@ -458,13 +500,6 @@ export default function HomePage() {
                   >
                     📥 Download DOCX again
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => docxBlobRef.current && openBlobInNewTab(docxBlobRef.current)}
-                    className="rounded-full border border-brand px-5 py-2 text-sm font-semibold text-brand hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-brand-dark dark:focus-visible:ring-offset-slate-950"
-                  >
-                    🔗 Open DOCX in Tab
-                  </button>
                   {/* PDF previews disabled: we return DOCX only. */}
                 </div>
               </section>
@@ -483,6 +518,16 @@ export default function HomePage() {
         )}
       </section>
       
+      <div className="mt-10">
+        <button
+          type="button"
+          onClick={resetForm}
+          className="w-full rounded-full border border-slate-200 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand dark:border-slate-700 dark:text-slate-200"
+        >
+          Restart
+        </button>
+      </div>
+
       {/* PDF preview disabled - DOCX only response */}
     </main>
   );

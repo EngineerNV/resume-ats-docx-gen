@@ -8,8 +8,9 @@ This directory contains the OpenAI Agent SDK workflows for resume generation.
 
 1. **`resume_orchestrator.py`** - Main orchestrator that coordinates the entire workflow
    - Runs job research (optional)
+   - Extracts structured context
    - Runs resume optimization
-   - Generates intelligent filenames
+   - Delegates filename creation to the File Naming Agent
    - Returns optimized JSON ready for DOCX generation
 
 2. **`resume_json_creator.py`** - Resume optimization workflow
@@ -22,9 +23,9 @@ This directory contains the OpenAI Agent SDK workflows for resume generation.
    - Extracts ATS keywords
    - Provides leadership values insights
 
-4. **`file_naming_agent.py`** - Intelligent filename generation
+4. **`file_naming_agent.py`** - Optional agent-driven filename generation
    - Reviews resume content
-   - Generates professional filenames
+   - Generates professional filenames and reasoning for MCP/LLM integrations
 
 ## Workflow Flow
 
@@ -71,32 +72,29 @@ This directory contains the OpenAI Agent SDK workflows for resume generation.
 from app_agents.workflows import ResumeOrchestrator
 
 orchestrator = ResumeOrchestrator()
-result = await orchestrator.run_complete_workflow(
+result = await orchestrator.run(
     resume_text="...",
     job_description="...",  # optional
     additional_context="..."  # optional
 )
 
 # result.optimized_resume_json - ready for DOCX generation
-# result.filename - intelligent filename
+# result.filename - filename from the File Naming Agent
 # result.mode - "job_tuning" or "resume_improvement"
 ```
 
 ### Direct Usage
 
 ```python
-from app_agents.workflows import run_resume_orchestrator
+from app_agents.workflows import run_resume_workflow
+from resume_gen.generator import ResumeGenerator
 
-# Synchronous wrapper
-result = run_resume_orchestrator(
+result = run_resume_workflow(
     resume_text="...",
     job_description="...",
 )
 
-# Generate DOCX
-from resume_gen.generator import ResumeGenerator
-generator = ResumeGenerator(result.optimized_resume_json)
-generator.generate(Path("output") / result.filename)
+ResumeGenerator(result.optimized_resume_json).generate(Path("output") / result.filename)
 ```
 
 ## Agent Details

@@ -19,9 +19,10 @@ Usage:
 """
 
 from pathlib import Path
+from typing import Union
 
 from mcp.server.fastmcp import FastMCP
-from mcp.types import TextContent, BlobResourceContents
+from mcp.types import BlobResourceContents, TextContent
 
 from resume_mcp.models import ResumeGenerateRequest
 from resume_mcp.tools import generate_resume_tool, get_outbox_location
@@ -31,6 +32,11 @@ from resume_mcp.resources import (
     get_outbox_file,
     list_outbox_files,
 )
+
+
+PROJECT_ROOT = Path(__file__).parent.parent
+OUTBOX_DIR = PROJECT_ROOT / "outbox"
+OUTBOX_DIR.mkdir(exist_ok=True)
 
 
 # Initialize FastMCP server
@@ -117,31 +123,24 @@ def get_template(name: str) -> str:
 
 # Resource: Outbox Files
 @mcp.resource("outbox://{filename}")
-def get_outbox(filename: str) -> BlobResourceContents:
+def get_outbox(filename: str) -> Union[BlobResourceContents, TextContent]:
     """
     Retrieve a generated DOCX file from the outbox.
-    
+
     Example: outbox://john_doe_resume.docx
     """
-    # Use the same outbox location as the tool
-    project_root = Path(__file__).parent.parent
-    outbox_dir = project_root / "outbox"
-    file_data = get_outbox_file(filename, outbox_dir)
-    
+    file_data = get_outbox_file(filename, OUTBOX_DIR)
+
     if file_data is None:
-        # Return error as text content
-        available = list_outbox_files(outbox_dir)
+        available = list_outbox_files(OUTBOX_DIR)
         if available:
             files_list = "\n".join(f"  - {f}" for f in available)
-            error_msg = f"File '{filename}' not found in outbox.\n\nAvailable files:\n{files_list}"
+            message = f"File '{filename}' not found in outbox.\n\nAvailable files:\n{files_list}"
         else:
-            error_msg = f"File '{filename}' not found. Outbox is empty."
-        
-        return BlobResourceContents(
-            blob="",
-            mimeType="text/plain",
-        )
-    
+            message = f"File '{filename}' not found. Outbox is empty."
+
+        return TextContent(type="text", text=message)
+
     return BlobResourceContents(
         blob=file_data.decode('latin-1'),  # FastMCP expects string, not bytes
         mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document",

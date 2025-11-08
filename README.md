@@ -1,193 +1,175 @@
 # resume-ats-docx-gen
 
-A Python CLI tool that generates ATS-friendly resumes in DOCX format from JSON input.
+A batteries-included toolkit for turning structured or free-form resume data into ATS-friendly DOCX files. The repo contains the Python generator, an OpenAI Agents-powered FastAPI backend, a standalone MCP server for AI clients, and a Next.js frontend for collecting inputs.
+
+## What's Inside
+- **CLI (`resume-gen`)** – render DOCX files directly from JSON.
+- **FastAPI server (`resume-api`)** – orchestrates agent workflows (resume/context extraction, job research, JSON builder) via `app_agents.workflows.ResumeOrchestrator` and streams the result into the DOCX generator.
+- **Agent workspace (`app_agents/`)** – reusable OpenAI Agents SDK building blocks plus testing/mocking helpers.
+- **Model Context Protocol server (`resume_mcp/`)** – exposes the generator to Claude Desktop, VS Code Copilot, and other MCP clients.
+- **Next.js frontend (`frontend/`)** – experiment with the workflow through a modern UI before wiring it into real systems.
+- **Examples & tests** – end-to-end scripts and an extensive pytest suite.
+
+## Tech Stack
+- **Python** 3.8+, `python-docx`, `click`, `FastAPI`, `uvicorn`, `pydantic`, `mcp`, `docx2pdf`, `openai` + OpenAI Agents SDK helpers.
+- **AI workflows** built on the OpenAI Responses API + Agents SDK (see `app_agents/workflows`).
+- **Frontend** with Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS, Radix UI, `react-dropzone`, `next-themes`, and Zod validation.
+
+## Repository Layout
+```
+resume-ats-docx-gen/
+├── resume_gen/          # Core generator + CLI entry point
+├── api/                 # FastAPI server (resume-api)
+├── app_agents/          # Agents SDK orchestrator, prompts, mocks, scripts
+├── resume_mcp/          # FastMCP server + validation models/tools
+├── frontend/            # Next.js UI (App Router)
+├── tests/               # Pytest suite + fixtures/mocks
+├── examples/            # Small helper scripts for demos/tests
+├── *.json               # Example resume payloads
+└── README.md            # You are here
+```
 
 ## Architecture Overview
-
-This repository provides a complete resume generation system with multiple integration options:
-
-### 1. **FastAPI Server** (`api/server.py`) - **Primary Workflow Orchestrator**
-   - REST API endpoints for frontend integration
-   - Integrates OpenAI agent workflows for resume optimization
-   - Uses **direct function calls** to generation tool (not MCP protocol)
-   - Provides both JSON and DOCX endpoints
-   - Run with: `resume-api`
-
-### 2. **Agent Workflows** (`app_agents/workflows/`)
-   - Resume optimization and generation powered by OpenAI
-   - Filename Agent for intelligent document naming
-   - Context extraction and resume improvement
-   - Job description alignment
-  - See [`app_agents/README.md`](app_agents/README.md) for details
-
-### 3. **CLI Tool** (`resume-gen`) - **Direct Generation**
-   - Standalone command-line tool
-   - Generate DOCX files directly from JSON input
-   - No API server or agents required
-   - Run with: `resume-gen render --in input.json --out output.docx`
-
-### 4. **Standalone MCP Server** (`resume_mcp/server.py`) - **Optional AI Client Integration**
-   - Model Context Protocol server for Claude Desktop, VS Code Copilot
-   - Separate from FastAPI workflow
-   - Enable AI assistants to generate resumes
-   - Run with: `python -m resume_mcp.server`
-   - See [MCP Server](#mcp-server) section below
-
-### 5. **Frontend UI** (`frontend/`) - **Beta**
-   - Next.js App Router application
-   - Communicates with FastAPI server
-   - Job tuning and resume improvement interfaces
-   - See [`frontend/README.md`](frontend/README.md) for setup
-
-**Architecture Flow:**
 ```
-Frontend → FastAPI Server → Agent Workflows → Direct Generation → DOCX
-                                              ↓
-                                     Filename Agent
+                ┌────────────────────────────┐
+User Input →    │  FastAPI Server (api/)     │  
+(CLI | UI)      │  • combines text + uploads │
+                │  • instantiates            │
+                │    ResumeOrchestrator      │
+                └────────────┬───────────────┘
+                             │
+                             ▼
+         ┌────────────────────────────────────────────┐
+         │ app_agents.workflows.ResumeOrchestrator    │
+         │  • resume_context_extractor                │
+         │  • job_research_agent (job mode only)      │
+         │  • resume_json_creator (flow manager,      │
+         │    tune/improve, personal summary,         │
+         │    JSON builder, judge)                    │
+         └────────────┬───────────────────────────────┘
+                      │
+                      ▼
+                Optimized resume JSON + reasoning
+                             │
+               ┌─────────────▼─────────────┐
+               │ resume_gen.ResumeGenerator│  → DOCX saved to outbox/
+               └─────────────┬─────────────┘
+                             │
+                  File download (/api/workflow/docx)
+
+AI assistants that speak the Model Context Protocol (Claude Desktop, VS Code
+Copilot, etc.) bypass FastAPI entirely. They connect directly to
+`resume_mcp/server.py`, invoke the `generate_resume` tool, and interact with the
+same `ResumeGenerator` + validation stack without going through the HTTP API.
+FastAPI is therefore optimized for the CLI/UI workflow, while MCP stays focused
+on direct agent access.
 ```
-
-## Features
-
-- **ATS-Optimized Format**: Single column layout optimized for Applicant Tracking Systems
-- **Professional Typography**: Calibri font with proper sizing (11pt body, 16pt name, 12pt headers)
-- **Structured Sections**: Header, Skills, Experience, Education, and Awards
-- **Action-Oriented**: Experience bullets designed to start with strong action verbs
-- **No Tables or Images**: Clean, parseable format without complex elements
-- **Clickable Links**: Email, LinkedIn, and GitHub links are clickable in the generated document
-- **Flexible Experience Format**: Support for both traditional bullets and organized subsections
-- **Compact Spacing**: Professional, tight spacing that maximizes content on each page
+Optional: `resume_mcp/server.py` exposes the same generator/validation stack to MCP clients so Copilot or Claude can call `generate_resume`. The FastAPI server calls `ResumeGenerator` directly for lower latency, while MCP clients continue to use the tool interface.
 
 ## Installation
-
-### 1. Clone and Setup
-
 ```bash
-# Clone the repository
+# Clone and enter the repo
 git clone https://github.com/EngineerNV/resume-ats-docx-gen.git
 cd resume-ats-docx-gen
 
-# Create a virtual environment
+# Create & activate a virtual environment
 python3 -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# Activate the virtual environment
-source .venv/bin/activate  # macOS/Linux
-# or
-.venv\Scripts\activate     # Windows
-
-# Install the package with all dependencies
-pip install -e .
-
-# Configure your OpenAI API key
-cp .env.example .env
-# Edit .env and add your OPENAI_API_KEY
+# Install all Python packages
+pip install -e .[dev]
 ```
 
-### 2. Verify Installation
-
-```bash
-# Test the CLI tool
-resume-gen --help
-
-# Test the MCP server imports correctly
-python -c "from resume_mcp.server import mcp; print('✅ MCP server ready')"
-
-# Test the API server
-python test_api_integration.py
-```
+## Configuration
+1. Copy `.env.example` to `.env` and set `OPENAI_API_KEY` (and optionally `OPENAI_BASE_URL`).
+2. Frontend settings live in `frontend/.env.local` (see `frontend/README.md`).
+3. Generated DOCX files are stored under `outbox/`. Delete individual files when you no longer need them.
 
 ## Quick Start
-
-### Option 1: CLI Tool (Direct JSON to DOCX)
-
-Generate a resume from a JSON file:
-
+### 1. CLI – JSON → DOCX
 ```bash
-resume-gen render --in draft.json --out resume.docx
+resume-gen render --in example_resume.json --out outbox/my_resume.docx
 ```
 
-### Option 2: FastAPI Server (Frontend Integration)
+Need help producing valid JSON quickly? See the ChatGPT helper prompts in `helper_prompts/`:
+- `helper_prompts/chatgpt_resume_json_builder_prompt.md` – paste into ChatGPT to enter "Resume JSON Builder" mode. It will collect your resume and optional job description, then output schema-compliant JSON you can feed directly into the CLI.
+- `helper_prompts/chatgpt_setup_troubleshooting_qna.md` – guided Q&A to diagnose environment setup issues (venv, FastAPI, frontend, CLI, MCP).
 
-Start the API server for frontend integration:
-
+Once you have your JSON (e.g., saved as `my_resume.json`), render it:
 ```bash
-# Start the FastAPI server
-resume-api
-
-# Or with auto-reload for development
-uvicorn api.server:app --reload
+resume-gen render --in my_resume.json --out outbox/my_resume.docx
 ```
 
-The server will be available at `http://localhost:8000`
+### 2. FastAPI server
+```bash
+# Inside the virtualenv
+resume-api               # or: uvicorn api.server:app --reload
+```
+Endpoints:
+- `GET /` – health check
+- `POST /api/workflow/json` – agent-optimized JSON suggestions
+- `POST /api/workflow/docx` – same workflow plus DOCX generation
 
-**API Endpoints:**
-- `POST /api/workflow/json` - Get AI-optimized resume JSON suggestions
-- `POST /api/workflow/docx` - Generate and download optimized DOCX resume
+Example DOCX request:
+```bash
+curl -X POST http://localhost:8000/api/workflow/docx \
+  -F 'mode=job' \
+  -F 'resumeText=@tests/fixtures/jordan_resume.txt' \
+  -F 'jobDescriptionText=Staff engineer role...' \
+  -o outbox/jordan_job_tuned.docx
+```
 
-See [`api/README.md`](api/README.md) for detailed API documentation.
-
-### Option 3: MCP Server (AI Agent Integration)
-
-Run the MCP server for AI agent tools:
-
+### 3. MCP server (optional AI client integration)
 ```bash
 python -m resume_mcp.server
 ```
+Configure Claude Desktop or VS Code Copilot to call the `generate_resume` MCP tool (see `resume_mcp/README.md`).
 
-Configure your AI client (Claude, VS Code Copilot) to use the MCP server. See [MCP Server](#mcp-server) section below for details.
-
-## Command Line Usage
-
-### Command Options
-
-- `--in`: Path to input JSON file (required)
-- `--out`: Path to output DOCX file (required)
+### 4. Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Set `USE_MOCK=false` and point `PY_WORKFLOW_JSON_URL` / `PY_WORKFLOW_DOCX_URL` at the FastAPI server to exercise the real workflow.
 
 ## JSON Format
-
-The input JSON should follow this structure:
-
+Input JSON matches the schema enforced by `resume_mcp/models.py`. Minimal example:
 ```json
 {
   "header": {
     "name": "Your Name",
-    "email": "your.email@example.com",
+    "email": "you@example.com",
     "location": "City, State",
-    "linkedin": "linkedin.com/in/yourprofile",
-    "github": "github.com/yourusername"
+    "linkedin": "linkedin.com/in/you",
+    "github": "github.com/you"
   },
-  "professional_summary": "Brief professional overview (optional)",
+  "professional_summary": "Optional short summary or list of paragraphs",
   "skills": {
-    "Category 1": ["Skill 1", "Skill 2", "Skill 3"],
-    "Category 2": ["Skill A", "Skill B"]
+    "Languages": ["Python", "Go"],
+    "Frameworks": ["FastAPI", "Next.js"]
   },
   "experience": [
     {
-      "role": "Job Title",
-      "company": "Company Name",
-      "dates": "Month Year - Present",
-      "location": "City, State",
+      "role": "Senior Software Engineer",
+      "company": "Example Corp",
+      "dates": "May 2021 – Present",
+      "location": "Remote",
       "bullets": [
-        "Action verb describing achievement with quantifiable results",
-        "Another accomplishment starting with action verb"
+        "Owned the resume automation platform and improved conversion by 32%",
+        "Led migration to FastAPI + OpenAI Agents"
       ]
     },
     {
-      "role": "Another Job Title",
-      "company": "Another Company",
-      "dates": "Month Year - Month Year",
-      "location": "City, State",
+      "role": "Software Engineer",
+      "company": "Another Co",
+      "dates": "2018 – 2021",
+      "location": "Austin, TX",
       "subsections": [
         {
-          "header": "Category or Focus Area",
+          "header": "PLATFORM",
           "bullets": [
-            "Achievement in this category",
-            "Another achievement in this category"
-          ]
-        },
-        {
-          "header": "Another Category",
-          "bullets": [
-            "Achievement in different focus area"
+            "Scaled ingestion services handling 5B events/day"
           ]
         }
       ]
@@ -195,288 +177,46 @@ The input JSON should follow this structure:
   ],
   "education": [
     {
-      "degree": "Degree Name",
-      "institution": "University Name",
-      "dates": "Year - Year",
-      "location": "City, State",
-      "gpa": "3.X/4.0"
+      "degree": "B.S. Computer Science",
+      "institution": "State University",
+      "dates": "2014 – 2018",
+      "location": "Seattle, WA",
+      "gpa": "3.8/4.0"
     }
   ],
-  "awards": [
-    "Award Name (Year)",
-    {
-      "title": "Award Title",
-      "date": "Year",
-      "description": "Brief description"
-    }
-  ]
+  "awards": ["Dean's List (2017)"]
 }
 ```
+See `example_resume.json`, `john_doe_resume.json`, and `example_with_summary.json` for fully-populated payloads.
 
-See `example_resume.json` for a complete example with traditional bullets, or `john_doe_resume.json` for an example using subsections.
+## Customization
+- Edit `resume_gen/config.json` to tweak fonts, spacing, and hyperlink colors.
+- `resume_gen/generator.py` exposes helpers for adding new sections (e.g., certifications) if your JSON schema evolves.
+- `app_agents/prompts.py` contains the instructions used by each agent. Update prompts/models there before re-exporting orchestrations.
 
-## Configuration
-
-The tool uses a `config.json` file in the `resume_gen/` directory to control formatting and styling. You can customize:
-
-- **Fonts**: Primary font, fallback font
-- **Font Sizes**: Body text, name, section headers
-- **Spacing**: Margins, paragraph spacing, bullet spacing
-- **Colors**: Text color, hyperlink color
-- **Formatting**: Underlines, italics, separators
-
-To customize, edit `resume_gen/config.json` before running the tool.
-
-## Advanced Features
-
-### Professional Summary (Optional)
-
-Add a professional summary section that appears before skills and experience:
-
-```json
-{
-  "professional_summary": "Experienced software engineer with 5+ years building scalable web applications..."
-}
-```
-
-Or use multiple paragraphs:
-
-```json
-{
-  "professional_summary": [
-    "First paragraph of summary...",
-    "Second paragraph providing more detail..."
-  ]
-}
-```
-
-### Clickable Links
-
-Email, LinkedIn, and GitHub URLs in the header section are automatically converted to clickable hyperlinks in the generated document. The tool automatically adds `https://` to LinkedIn and GitHub URLs if not already present.
-
-### Experience Subsections (Optional)
-
-For complex roles with multiple focus areas, you can organize bullets into subsections. This is completely optional - traditional `bullets` format still works perfectly.
-
-**Traditional Format (still supported):**
-```json
-{
-  "role": "Software Engineer",
-  "company": "Tech Corp",
-  "dates": "2021 - 2024",
-  "location": "San Francisco, CA",
-  "bullets": [
-    "Built scalable APIs",
-    "Improved performance by 40%"
-  ]
-}
-```
-
-**Subsections Format (new option):**
-```json
-{
-  "role": "Full Stack Developer",
-  "company": "Tech Corp",
-  "dates": "2021 - 2024",
-  "location": "San Francisco, CA",
-  "subsections": [
-    {
-      "header": "Platform Modernization",
-      "bullets": [
-        "Led migration to modern stack",
-        "Improved load times by 26%"
-      ]
-    },
-    {
-      "header": "AI Integration",
-      "bullets": [
-        "Built AI prototype replacing $100K vendor"
-      ]
-    }
-  ]
-}
-```
-
-Subsection headers are rendered in uppercase with proper spacing to organize your achievements by theme or category.
-
-## Example
+## Testing
+The test suite mixes pure Python tests and integration checks. Most FastAPI + agent tests expect a valid `OPENAI_API_KEY`; others rely on `app_agents.testing.FakeOpenAI` fixtures.
 
 ```bash
-# Generate resume using the example file
-resume-gen render --in example_resume.json --out my_resume.docx
+# Run everything (requires API key for the networked tests)
+pytest
+
+# Run deterministic/offline tests only
+pytest tests/test_direct_generation.py tests/test_mcp.py
 ```
+Key entry points:
+- `tests/test_fastapi_agents_docx.py` – full end-to-end smoke test.
+- `tests/test_direct_generation.py` – validates generator + optional filename agent without MCP IPC.
+- `tests/test_mcp.py` – ensures the MCP server registers the correct tools/resources.
+- `tests/test_resume_workflow.py` – covers `ResumeOrchestrator` logic with mock responses.
 
-## MCP Server
-
-This project includes a Model Context Protocol (MCP) server that enables AI agents to generate resumes programmatically.
-
-### Setup
-
-The MCP server is automatically installed when you follow the [Installation](#installation) steps above. The package includes all necessary dependencies.
-
-**Verify MCP server installation:**
-```bash
-# Activate your virtual environment first
-source .venv/bin/activate  # macOS/Linux
-# .venv\Scripts\activate   # Windows
-
-# Test the server imports correctly
-python -c "from resume_mcp.server import mcp; print('✅ MCP server ready')"
-```
-
-**Run the MCP server directly (for testing):**
-```bash
-python -m resume_mcp.server
-```
-
-### Integration with AI Clients
-
-After completing the [Installation](#installation) steps, configure your AI client to use the MCP server:
-
-#### Claude Desktop
-
-Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
-
-```json
-{
-  "mcpServers": {
-    "resume-generator": {
-      "command": "/absolute/path/to/.venv/bin/python",
-      "args": ["-m", "resume_mcp.server"],
-      "cwd": "/absolute/path/to/resume-ats-docx-gen"
-    }
-  }
-}
-```
-
-**⚠️ Important:** Replace both `/absolute/path/to/` placeholders with your actual project path.
-
-#### VS Code GitHub Copilot
-
-The `.vscode/mcp.json` file is already configured. Just **restart VS Code** to activate the MCP server.
-
-To manually configure, create or edit `.vscode/mcp.json` in your workspace:
-
-```json
-{
-  "servers": {
-    "resume-generator": {
-      "command": "${workspaceFolder}/.venv/bin/python",
-      "args": ["-m", "resume_mcp.server"],
-      "cwd": "${workspaceFolder}",
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}"
-      }
-    }
-  }
-}
-```
-
-**📚 For more details on MCP configuration in VS Code, see the [official documentation](https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_configuration-format).**
-
-**Test in VS Code:**
-1. Restart VS Code
-2. Open Copilot Chat (Cmd+I or Ctrl+I)
-3. Try: `@workspace Create a resume for a Python developer and save as test.docx`
-
-### MCP Tools
-
-**`generate_resume`** - Generate DOCX from JSON
-
-```python
-# Example usage from AI agent:
-generate_resume(
-    resume={
-        "header": {"name": "John Doe", "email": "john@example.com"},
-        "skills": {"Languages": ["Python", "JavaScript"]},
-        "experience": [...]
-    },
-    filename="john_doe_resume.docx"
-)
-```
-
-The tool provides:
-- ✅ Strict validation with detailed error messages
-- ✅ Automatic file saving to temp directory
-- ✅ Access to generated files via `outbox://` resources
-
-### MCP Resources
-
-**Templates** - View example resume structures:
-- `template://simple` - Minimal resume example
-- `template://full` - Complete traditional format
-- `template://with-summary` - Resume with professional summary
-
-**Outbox** - Access generated files:
-- `outbox://filename.docx` - Retrieve generated DOCX file
-
-### Error Handling
-
-The MCP server provides detailed, actionable error messages for common issues:
-
-```
-❌ Resume validation failed. Fix the following issues:
-  • header.email: field required
-  • experience[0].bullets: Must provide either 'bullets' or 'subsections'
-
-Review the required schema. Use template:// resources to see valid examples.
-```
-
-### File Location
-
-Generated resumes are saved to: `{temp_dir}/resume-mcp-outbox/`
-
-On macOS/Linux, this is typically: `/tmp/resume-mcp-outbox/`
-
-## Requirements
-
-- Python 3.8+
-- python-docx >= 0.8.11
-- click >= 8.0.0
-- mcp >= 1.0.0 (for MCP server)
-- pydantic >= 2.0.0 (for validation)
-- fastapi >= 0.100.0 (for API server)
-- uvicorn >= 0.23.0 (for API server)
-- openai >= 1.0.0 (for agent workflows)
-
-All dependencies are automatically installed with `pip install -e .`
-
-## FastAPI Server
-
-The FastAPI server provides REST API endpoints for frontend integration. It orchestrates:
-
-1. **Agent Workflows**: Uses OpenAI agents to optimize resumes based on job descriptions or general improvement
-2. **MCP Integration**: Converts optimized JSON to DOCX using the MCP server tools
-3. **CORS Support**: Configured for local frontend development
-
-### Starting the Server
-
-```bash
-# Using the CLI command
-resume-api
-
-# Or with auto-reload for development
-uvicorn api.server:app --reload --port 8000
-```
-
-### API Documentation
-
-Once the server is running, visit:
-- Interactive API docs: `http://localhost:8000/docs`
-- Alternative docs: `http://localhost:8000/redoc`
-
-For detailed API documentation, see [`api/README.md`](api/README.md)
-
-### Integration with Frontend
-
-Configure your frontend `.env.local`:
-
-```bash
-USE_MOCK=false
-PY_WORKFLOW_JSON_URL=http://localhost:8000/api/workflow/json
-PY_WORKFLOW_DOCX_URL=http://localhost:8000/api/workflow/docx
-```
+## Additional Documentation
+- `ARCHITECTURE.md` – deeper dive into the data flow and design choices.
+- `api/README.md` – detailed API contract, examples, troubleshooting.
+- `app_agents/README.md` – how the OpenAI agent workflows are wired together.
+- `resume_mcp/README.md` – MCP tooling, templates, and error handling.
+- `frontend/README.md` – UI setup, environment flags, feature list.
+- `tests/README.md` – overview of the pytest suite.
 
 ## License
-
 MIT

@@ -1,17 +1,11 @@
 from agents import Agent, ModelSettings, TResponseInputItem, Runner, RunConfig, trace
 from pydantic import BaseModel
 
+from ..prompts import RESUME_EXTRACTION_INSTRUCTIONS
+
 resume_extraction_agent = Agent(
   name="Resume Extraction Agent",
-  instructions="""You are an intelligent Resume Extraction Agent. Your task is to analyze and extract detailed resume data from any text blob, whether it's structured, unstructured, poorly formatted, or cleanly presented.
-Your output should be a well-organized JSON-like object that captures the full resume contents in a human-readable but structured format. The structure should not be too strict — missing fields are acceptable if the data doesn’t exist — but use the following schema as a flexible guide:
-{   \"header\": {     \"name\": \"\",     \"email\": \"\",     \"location\": \"\",     \"linkedin\": \"\",     \"github\": \"\"   },   \"professional_summary\": \"\",   \"skills\": {     \"Category 1\": [],     \"Category 2\": []   },   \"experience\": [     {       \"role\": \"\",       \"company\": \"\",       \"dates\": \"\",       \"location\": \"\",       \"bullets\": []     },     {       \"role\": \"\",       \"company\": \"\",       \"dates\": \"\",       \"location\": \"\",       \"subsections\": [         {           \"header\": \"\",           \"bullets\": []         }       ]     }   ],   \"education\": [     {       \"degree\": \"\",       \"institution\": \"\",       \"dates\": \"\",       \"location\": \"\",       \"gpa\": \"\"     }   ],   \"awards\": [     \"\",     {       \"title\": \"\",       \"date\": \"\",       \"description\": \"\"     }   ] } 
-🔹 Guidelines:
-Extract as much information as possible based on content available in the input text.
-Preserve bullet points, sub-sections, and groupings when they appear in experience or skills.
-Infer categories (e.g., skills, experience focus areas) when not explicitly labeled.
-Be robust to broken formatting, missing punctuation, and inconsistent section titles.
-You do not need to validate or normalize data like email formats or dates; just extract them accurately.""",
+  instructions=RESUME_EXTRACTION_INSTRUCTIONS,
   model="gpt-4.1",
   model_settings=ModelSettings(
     temperature=1,

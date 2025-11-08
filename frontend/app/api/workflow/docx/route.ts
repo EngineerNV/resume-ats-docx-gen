@@ -4,8 +4,8 @@ import { formDataSchema, ValidatedFormData, NamedBlob } from '../../../../lib/sc
 
 export const runtime = 'nodejs';
 
-const USE_MOCK = process.env.USE_MOCK !== 'false';
-const PY_WORKFLOW_DOCX_URL = process.env.PY_WORKFLOW_DOCX_URL;
+// ...existing code...
+const PY_WORKFLOW_DOCX_URL = process.env.NEXT_PUBLIC_PY_WORKFLOW_DOCX_URL;
 
 function isFile(value: unknown): value is File {
   return typeof File !== 'undefined' && value instanceof File;
@@ -69,19 +69,8 @@ export async function POST(request: Request) {
   }
 
   const data = validation.data;
-
-  if (USE_MOCK || !PY_WORKFLOW_DOCX_URL) {
-    // Generate a lightweight DOCX on the fly so the mock flow remains binary-compatible
-    // without needing to ship a static artifact in the repository.
-    const buffer = await createMockDocx(data);
-    return new NextResponse(buffer, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'Content-Disposition': 'attachment; filename="resume.docx"',
-        'Cache-Control': 'no-store'
-      }
-    });
+  if (!PY_WORKFLOW_DOCX_URL) {
+    return NextResponse.json({ ok: false, code: 'CONFIG_ERROR', message: 'PY_WORKFLOW_DOCX_URL is not set.' }, { status: 500 });
   }
 
   const proxyFormData = toProxyFormData(data);
@@ -111,22 +100,41 @@ export async function POST(request: Request) {
         { status: response.status }
       );
     }
+    // Log upstream response info to help debugging filename/header issues
+    console.log('[workflow/docx] upstream response status=', response.status);
+    try {
+      console.log('[workflow/docx] upstream Content-Disposition=', response.headers.get('Content-Disposition'));
+      console.log('[workflow/docx] upstream Content-Type=', response.headers.get('Content-Type'));
+    } catch (err) {
+      console.warn('[workflow/docx] failed reading upstream headers', err);
+    }
 
     const headersOut = new Headers(response.headers);
-    headersOut.set(
-      'Content-Disposition',
-      headersOut.get('Content-Disposition') ?? 'attachment; filename="resume.docx"'
-    );
+    // Ensure we always have a Content-Disposition; prefer upstream if present
+    const upstreamCD = headersOut.get('Content-Disposition');
+    if (upstreamCD) {
+      headersOut.set('Content-Disposition', upstreamCD);
+    } else {
+      headersOut.set('Content-Disposition', 'attachment; filename="resume.docx"');
+    }
+
     headersOut.set('Cache-Control', 'no-store');
     headersOut.set('Content-Type',
       headersOut.get('Content-Type') ?? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     );
+
+    console.log('[workflow/docx] returning proxied response with headers:', {
+      'Content-Disposition': headersOut.get('Content-Disposition'),
+      'Content-Type': headersOut.get('Content-Type'),
+      'Status': response.status
+    });
 
     return new NextResponse(response.body, {
       status: response.status,
       headers: headersOut
     });
   } catch (error) {
+    console.error('[workflow/docx] network error when proxying to PY_WORKFLOW_DOCX_URL=', PY_WORKFLOW_DOCX_URL, error);
     return NextResponse.json(
       { ok: false, code: 'NETWORK_ERROR', message: 'Failed to reach workflow service.' },
       { status: 502 }

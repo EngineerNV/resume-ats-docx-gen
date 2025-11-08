@@ -17,7 +17,8 @@ except ModuleNotFoundError:  # pragma: no cover - fallback when SDK unavailable
     OpenAI = _Any  # type: ignore[assignment]
 
 from ..client import create_openai_client
-from ..prompts import MCP_RESUME_AGENT_INSTRUCTIONS
+from ..prompts import FILE_NAMING_AGENT_INSTRUCTIONS
+import re
 from .base import AgentDefinition, extract_output_text, text_item, user_message
 
 
@@ -34,7 +35,11 @@ FILE_NAMING_AGENT_SCHEMA = {
     "type": "object",
     "properties": {
         "filename": {"type": "string"},
-        "resume_data": {"type": "object", "additionalProperties": False},
+        "resume_data": {
+            "type": "object",
+            "description": "Optimized resume JSON payload ready for DOCX generation.",
+            "additionalProperties": True,
+        },
         "mcp_server_ready": {"type": "boolean"},
         "reasoning": {"type": "string"},
     },
@@ -46,12 +51,9 @@ FILE_NAMING_AGENT_SCHEMA = {
 # Agent definition for File Naming Agent
 FILE_NAMING_AGENT = AgentDefinition(
     name="File Naming Agent",
-    instructions=MCP_RESUME_AGENT_INSTRUCTIONS,
+    instructions=FILE_NAMING_AGENT_INSTRUCTIONS,
     model="gpt-5-mini",
-    response_format=_json_schema(
-        "FileNamingAgentOutput",
-        FILE_NAMING_AGENT_SCHEMA,
-    ),
+    response_format=None,
 )
 
 
@@ -137,26 +139,96 @@ def prepare_resume_for_mcp(
         except Exception:
             parsed = None
 
+    def _sanitize_filename(s: str) -> str:
+        s = s.strip()
+        # remove surrounding quotes if present
+        if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
+            s = s[1:-1]
+        # replace spaces and punctuation with underscores, keep alphanumerics and underscores and dots
+        s = re.sub(r"[^0-9A-Za-z._]+", "_", s)
+        # collapse multiple underscores
+        s = re.sub(r"_+", "_", s)
+        s = s.strip("_")
+        if not s.lower().endswith('.docx'):
+            s = s + '.docx'
+        return s
+
+    def _filename_from_resume(resume: Dict[str, Any]) -> str:
+        header = resume.get("header", {}) if isinstance(resume, dict) else {}
+        name = header.get("name") or header.get("full_name") or ""
+        if name and isinstance(name, str):
+            # build firstname_lastname_resume.docx
+            parts = re.findall(r"[A-Za-z0-9]+", name)
+            if parts:
+                fname = "_".join(parts).lower() + "_resume.docx"
+                return _sanitize_filename(fname)
+    return "resume.docx"
+
+    filename: str = ""
+    resume_data: Dict[str, Any] = optimized_resume
+    mcp_server_ready = True
+    reasoning = ""
+    text = ""
+
     if parsed is not None:
-        text = json.dumps(parsed, ensure_ascii=False)
+        # parsed may be a dict-like or a plain string depending on model output
+        text = json.dumps(parsed, ensure_ascii=False) if not isinstance(parsed, str) else str(parsed)
+        if isinstance(parsed, str):
+            filename = _sanitize_filename(parsed)
+            reasoning = "Filename returned as plain string by the agent."
+        elif isinstance(parsed, dict) and parsed.get("filename"):
+            filename = _sanitize_filename(parsed.get("filename"))
+            resume_data = parsed.get("resume_data", optimized_resume)
+            mcp_server_ready = parsed.get("mcp_server_ready", True)
+            reasoning = parsed.get("reasoning", "Filename derived from parsed JSON.")
+        else:
+            # fallback to try extracting filename from text
+            try:
+                loaded = json.loads(text)
+                if isinstance(loaded, str):
+                    filename = _sanitize_filename(loaded)
+                    reasoning = "Filename extracted from JSON string payload."
+                elif isinstance(loaded, dict) and loaded.get("filename"):
+                    filename = _sanitize_filename(loaded.get("filename"))
+                    resume_data = loaded.get("resume_data", optimized_resume)
+                    mcp_server_ready = loaded.get("mcp_server_ready", True)
+                    reasoning = loaded.get("reasoning", "Filename extracted from JSON object payload.")
+            except Exception:
+                filename = _filename_from_resume(optimized_resume)
+                reasoning = "Fallback filename generated from resume header due to unparseable agent output."
     else:
+        # No parsed structured output; try to extract text and interpret it
         text = extract_output_text(response_dict if response_dict is not None else response)
+        # try JSON first
         try:
-            parsed = json.loads(text)
-        except json.JSONDecodeError:
-            parsed = {
-                "filename": "resume.docx",
-                "resume_data": optimized_resume,
-                "mcp_server_ready": True,
-                "reasoning": "Fallback filename due to parsing error",
-            }
-            text = json.dumps(parsed, ensure_ascii=False)
+            loaded = json.loads(text)
+            if isinstance(loaded, str):
+                filename = _sanitize_filename(loaded)
+                reasoning = "Filename extracted from JSON string payload."
+            elif isinstance(loaded, dict) and loaded.get("filename"):
+                filename = _sanitize_filename(loaded.get("filename"))
+                resume_data = loaded.get("resume_data", optimized_resume)
+                mcp_server_ready = loaded.get("mcp_server_ready", True)
+                reasoning = loaded.get("reasoning", "Filename extracted from JSON object payload.")
+            else:
+                # If JSON does not contain filename, try to treat raw text as filename
+                filename = _sanitize_filename(text)
+                reasoning = "Assumed raw text output is the filename."
+        except Exception:
+            # not JSON; assume the raw text is the filename or fall back to resume header
+            stripped = text.strip()
+            if stripped:
+                filename = _sanitize_filename(stripped)
+                reasoning = "Assumed raw text output is the filename."
+            else:
+                filename = _filename_from_resume(optimized_resume)
+                reasoning = "Fallback filename generated from resume header due to empty agent output."
 
     return FileNamingAgentResult(
-        filename=parsed["filename"],
-        resume_data=parsed["resume_data"],
-        mcp_server_ready=parsed["mcp_server_ready"],
-        reasoning=parsed["reasoning"],
+        filename=filename,
+        resume_data=resume_data,
+        mcp_server_ready=mcp_server_ready,
+        reasoning=reasoning,
         text=text,
         parsed=parsed,
     )

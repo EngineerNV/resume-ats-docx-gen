@@ -4,15 +4,18 @@ FastAPI server for resume generation using OpenAI Agents SDK.
 Single unified implementation - no old patterns, clean architecture.
 """
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from typing import List
+from dataclasses import dataclass
 from pathlib import Path
+from typing import List, Optional
+
 import io
-from docx import Document
-# Note: legacy .doc support removed. We only accept .docx/.txt/.md on the server.
 import logging
+
+from docx import Document
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+# Note: legacy .doc support removed. We only accept .docx/.txt/.md on the server.
  
 
 logging.basicConfig(level=logging.INFO)
@@ -33,55 +36,76 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
 )
 
 
 
-async def read_file_content(file: UploadFile) -> str:
-    """Read and decode uploaded file."""
-    content = await file.read()
-    # If the file is a DOCX, use python-docx to extract text from the docx
-    # package rather than attempting to decode binary ZIP contents as text.
-    filename = (getattr(file, 'filename', '') or '').lower()
-    content_type = (getattr(file, 'content_type', '') or '').lower()
+@dataclass(frozen=True)
+class UploadedFileMeta:
+    """Metadata we care about when decoding UploadFile objects."""
 
-    # If it's a PDF, try PyMuPDF (pymupdf) to extract text
-    if filename.endswith('.pdf') or 'pdf' in content_type:
-        try:
-            import fitz  # PyMuPDF
-        except Exception:
-            raise HTTPException(400, "PDF extraction requires the 'pymupdf' package (pip install pymupdf)")
-        try:
-            doc = fitz.open(stream=content, filetype='pdf')
-            pages: list[str] = []
-            for page in doc:
-                text = page.get_text('text')
-                if text and text.strip():
-                    pages.append(text.strip())
-            combined = "\n\n".join(pages).strip()
-            return combined
-        except Exception as e:
-            raise HTTPException(400, f"PDF extraction failed: {e}")
+    filename: str
+    content_type: str
 
-    if filename.endswith('.docx') or 'wordprocessingml' in content_type:
-        try:
-            doc = Document(io.BytesIO(content))
-            parts: list[str] = []
-            # paragraphs
-            for p in doc.paragraphs:
-                if p.text and p.text.strip():
-                    parts.append(p.text.strip())
-            # tables
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        if cell.text and cell.text.strip():
-                            parts.append(cell.text.strip())
-            return "\n\n".join(parts).strip()
-        except Exception:
-            # Fall back to existing decoding strategy if python-docx fails
-            pass
 
+def _looks_like_pdf(meta: UploadedFileMeta) -> bool:
+    return meta.filename.endswith('.pdf') or 'pdf' in meta.content_type
+
+
+def _looks_like_docx(meta: UploadedFileMeta) -> bool:
+    return meta.filename.endswith('.docx') or 'wordprocessingml' in meta.content_type
+
+
+def _extract_pdf_text(content: bytes, meta: UploadedFileMeta) -> Optional[str]:
+    """Return text if the payload appears to be a PDF; otherwise None."""
+    if not _looks_like_pdf(meta):
+        return None
+
+    try:
+        import fitz  # PyMuPDF
+    except Exception:
+        raise HTTPException(400, "PDF extraction requires the 'pymupdf' package (pip install pymupdf)")
+
+    try:
+        doc = fitz.open(stream=content, filetype='pdf')
+        pages: list[str] = []
+        for page in doc:
+            text = page.get_text('text')
+            if text and text.strip():
+                pages.append(text.strip())
+        return "\n\n".join(pages).strip()
+    except Exception as exc:
+        raise HTTPException(400, f"PDF extraction failed: {exc}")
+
+
+def _extract_docx_text(content: bytes, meta: UploadedFileMeta) -> Optional[str]:
+    """Return DOCX text (paragraphs + tables) if file looks like docx."""
+    if not _looks_like_docx(meta):
+        return None
+
+    try:
+        doc = Document(io.BytesIO(content))
+    except Exception:
+        # Fall back to plain-text decoding if python-docx cannot parse the file.
+        return None
+
+    parts: list[str] = []
+    for paragraph in doc.paragraphs:
+        if paragraph.text and paragraph.text.strip():
+            parts.append(paragraph.text.strip())
+
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                if cell.text and cell.text.strip():
+                    parts.append(cell.text.strip())
+
+    return "\n\n".join(parts).strip()
+
+
+def _decode_text_bytes(content: bytes, filename: str) -> str:
+    """Best-effort decoding for plaintext formats with helpful errors."""
     try:
         return content.decode('utf-8')
     except UnicodeDecodeError:
@@ -90,7 +114,23 @@ async def read_file_content(file: UploadFile) -> str:
                 return content.decode(encoding)
             except UnicodeDecodeError:
                 continue
-        raise HTTPException(400, f"Unable to decode file {file.filename}")
+    raise HTTPException(400, f"Unable to decode file {filename}")
+
+
+async def read_file_content(file: UploadFile) -> str:
+    """Read and decode uploaded file into plain text."""
+    content = await file.read()
+    metadata = UploadedFileMeta(
+        filename=(getattr(file, 'filename', '') or '').lower(),
+        content_type=(getattr(file, 'content_type', '') or '').lower(),
+    )
+
+    for extractor in (_extract_pdf_text, _extract_docx_text):
+        extracted = extractor(content, metadata)
+        if extracted:
+            return extracted
+
+    return _decode_text_bytes(content, metadata.filename or 'uploaded file')
 
 
 async def combine_text_and_files(text: str, files: List[UploadFile]) -> str:

@@ -3,7 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, Iterator, Optional, Tuple
 
 from docx import Document
 from docx.shared import Pt, RGBColor, Inches
@@ -551,21 +551,34 @@ class ResumeGenerator:
                 
                 self._add_bullet_paragraph(award_text)
     
+    def _iter_section_builders(self) -> Iterator[Tuple[str, Callable[[], None]]]:
+        """Yield section builders in the order they should appear in the DOCX.
+
+        Keeping the order definition in one place makes it trivial to scan the
+        overall document layout without scrolling through the entire file.
+        """
+        yield "header", self._add_header_section
+        yield "professional_summary", self._add_professional_summary_section
+        yield "skills", self._add_skills_section
+        yield "experience", self._add_experience_section
+        yield "education", self._add_education_section
+        yield "awards", self._add_awards_section
+
     def generate(self, output_path: Path):
         """Generate the resume document.
-        
+
         Args:
             output_path: Path where the DOCX file will be saved
         """
-        # Add all sections in order
-        self._add_header_section()
-        self._add_professional_summary_section()
-        self._add_skills_section()
-        self._add_experience_section()
-        self._add_education_section()
-        self._add_awards_section()
-        
-        # Save the document
+        # Add all sections in order, skipping any that have no data.
+        for section_name, builder in self._iter_section_builders():
+            before = len(self.doc.paragraphs)
+            builder()
+            after = len(self.doc.paragraphs)
+            logger.debug("Rendered section '%s' (%s new paragraphs)", section_name, after - before)
+
+        # Save the document once all sections are rendered. Using str(path)
+        # guarantees python-docx receives a filesystem-safe path on all OSes.
         self.doc.save(str(output_path))
 
 
