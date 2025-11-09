@@ -2,6 +2,8 @@
 
 A batteries-included toolkit for turning structured or free-form resume data into ATS-friendly DOCX files. The repo contains the Python generator, an OpenAI Agents-powered FastAPI backend, a standalone MCP server for AI clients, and a Next.js frontend for collecting inputs.
 
+[![Watch Demo](https://img.shields.io/badge/▶️%20Watch-Demo-blue)](https://drive.google.com/file/d/1T_HkT1u1QmoNtklUejggQ_K69q3ldVpm/view?usp=drive_link)
+
 ## What's Inside
 - **CLI (`resume-gen`)** – render DOCX files directly from JSON.
 - **FastAPI server (`resume-api`)** – orchestrates agent workflows (resume/context extraction, job research, JSON builder) via `app_agents.workflows.ResumeOrchestrator` and streams the result into the DOCX generator.
