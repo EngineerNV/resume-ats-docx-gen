@@ -297,12 +297,12 @@ Key entry points:
 - `tests/test_resume_workflow.py` – covers `ResumeOrchestrator` logic with mock responses.
 
 ## Additional Documentation
-- `ARCHITECTURE.md` – deeper dive into the data flow and design choices.
-- `api/README.md` – detailed API contract, examples, troubleshooting.
-- `app_agents/README.md` – how the OpenAI agent workflows are wired together.
-- `resume_mcp/README.md` – MCP tooling, templates, and error handling.
-- `frontend/README.md` – UI setup, environment flags, feature list.
-- `tests/README.md` – overview of the pytest suite.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) – deeper dive into the data flow and design choices.
+- [`api/README.md`](api/README.md) – detailed API contract, examples, troubleshooting.
+- [`app_agents/README.md`](app_agents/README.md) – how the OpenAI agent workflows are wired together.
+- [`resume_mcp/README.md`](resume_mcp/README.md) – MCP tooling, templates, and error handling.
+- [`frontend/README.md`](frontend/README.md) – UI setup, environment flags, feature list.
+- [`tests/README.md`](tests/README.md) – overview of the pytest suite.
 
 ## License
 MIT edited - Nick License v1 (Personal-Use, Non-Commercial, No-AI)
