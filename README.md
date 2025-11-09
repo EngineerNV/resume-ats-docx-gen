@@ -303,4 +303,4 @@ Key entry points:
 - `tests/README.md` – overview of the pytest suite.
 
 ## License
-MIT
+MIT edited - Nick License v1 (Personal-Use, Non-Commercial, No-AI)
