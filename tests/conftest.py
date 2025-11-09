@@ -1,3 +1,28 @@
+"""pytest configuration for this repo.
+
+Loads environment variables from the project `.env` file early so tests
+that depend on env settings (for agent clients, API keys, etc.) run the
+same way whether executed under pytest or via other runners.
+
+This import runs at pytest collection time.
+"""
+try:
+    # Prefer find_dotenv/load_dotenv helpers for robust project-root discovery
+    from dotenv import load_dotenv, find_dotenv
+    # locate .env (search upwards) and load it if found; don't error if missing
+    env_path = find_dotenv(usecwd=True)
+    if env_path:
+        load_dotenv(env_path)
+    else:
+        # fallback: try to load a .env in the repo root
+        try:
+            load_dotenv('.env')
+        except Exception:
+            pass
+except Exception:
+    # If python-dotenv isn't installed, don't fail the test run; env vars
+    # will simply not be loaded from a file.
+    pass
 """
 Pytest configuration for resume-ats-docx-gen tests.
 """

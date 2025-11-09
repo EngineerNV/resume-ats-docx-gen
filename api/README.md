@@ -66,11 +66,12 @@ curl -X POST http://localhost:8000/api/workflow/docx \
 ## How It Works
 1. Uploaded documents are decoded through `read_file_content`, which understands UTF-8 text, `.docx` (via `python-docx`), and `.pdf` (when `pymupdf` is installed). All sources are concatenated with the plain-text fields.
 2. `ResumeOrchestrator.run(...)` executes asynchronously. In job mode it automatically feeds job-research insights into the prompt stack so downstream agents can reason about ATS alignment.
-3. The orchestrator returns `ResumeWorkflowResult` with optimized JSON, an agent-generated filename (e.g., `firstname_lastname_resume.docx`), and reasoning metadata.
+3. The orchestrator returns `ResumeWorkflowResult` with optimized JSON, a locally-derived filename (e.g., `firstname_lastname_resume.docx`) based on the candidate's name, and reasoning metadata.
 4. The DOCX endpoint instantiates `ResumeGenerator(result.optimized_resume_json)` and writes to `outbox/`. The JSON endpoint simply forwards the structured payload.
 
 ## File Handling Notes
 - DOCX outputs are stored under `<project>/outbox/` even when the API streams the result immediately. Clean up files as needed.
+- Duplicate filenames: no uniqueness or suffixing is applied. If an existing file with the same name is present in `outbox/`, it will be overwritten by `python-docx` during save.
 - If you upload `.pdf` files, install `pymupdf` (`pip install pymupdf`) to enable extraction; otherwise the API returns a 400 telling you to install it.
 - `.doc` files are intentionally unsupported to keep the parsing logic simple.
 

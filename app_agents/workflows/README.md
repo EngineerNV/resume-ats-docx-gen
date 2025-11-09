@@ -10,7 +10,7 @@ This directory contains the OpenAI Agent SDK workflows for resume generation.
    - Runs job research (optional)
    - Extracts structured context
    - Runs resume optimization
-   - Delegates filename creation to the File Naming Agent
+   - Derives filename directly from the optimized resume JSON header (no agent call)
    - Returns optimized JSON ready for DOCX generation
 
 2. **`resume_json_creator.py`** - Resume optimization workflow
@@ -23,9 +23,9 @@ This directory contains the OpenAI Agent SDK workflows for resume generation.
    - Extracts ATS keywords
    - Provides leadership values insights
 
-4. **`file_naming_agent.py`** - Optional agent-driven filename generation
-   - Reviews resume content
-   - Generates professional filenames and reasoning for MCP/LLM integrations
+4. **`file_naming_agent.py`** - Legacy / optional agent-driven filename generation (currently NOT invoked by the orchestrator)
+   - Retained only for backward compatibility, tests, and potential future interactive use cases
+   - Not part of the live FastAPI or orchestration path; filename is computed locally for performance & determinism
 
 ## Workflow Flow
 
@@ -54,7 +54,7 @@ This directory contains the OpenAI Agent SDK workflows for resume generation.
             ┌───────────────┐
             │ Optimized     │
             │ Resume JSON + │
-            │ Filename      │
+            │ Local Filename│
             └───────┬───────┘
                     │
                     ▼
@@ -79,7 +79,7 @@ result = await orchestrator.run(
 )
 
 # result.optimized_resume_json - ready for DOCX generation
-# result.filename - filename from the File Naming Agent
+# result.filename - filename derived locally from resume header (not from file_naming_agent)
 # result.mode - "job_tuning" or "resume_improvement"
 ```
 
@@ -97,7 +97,13 @@ result = run_resume_workflow(
 ResumeGenerator(result.optimized_resume_json).generate(Path("output") / result.filename)
 ```
 
-## Agent Details
+## Agent Details & Filename Generation
+
+### Filename Generation (Current Behavior)
+- The orchestrator derives `firstname_lastname_resume.docx` (lowercased, non-alphanumeric stripped) from `optimized_resume_json.header.name`.
+- Falls back to `resume.docx` if no usable name tokens are found.
+- No uniqueness or collision handling is performed; downstream writers (FastAPI endpoint / CLI) will overwrite existing files with the same name.
+- The separate `file_naming_agent.py` is unused in the active workflow; see its README comments if re-activation is desired.
 
 ### Resume Flow Manager
 - Determines workflow mode (job tuning vs. improvement)

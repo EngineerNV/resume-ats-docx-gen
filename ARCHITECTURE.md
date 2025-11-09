@@ -121,7 +121,7 @@ PY_WORKFLOW_DOCX_URL=http://localhost:8000/api/workflow/docx
 The UI enforces the same validation rules as the API, shows payload previews, and reveals reasoning returned by the agents to help users understand the optimizations that were applied.
 
 ## 7. Optional Features
-- `app_agents/workflows/file_naming_agent.py` powers the OpenAI-driven filename generator that FastAPI now calls directly so DOCX downloads inherit the agent's naming output.
+- `app_agents/workflows/file_naming_agent.py` (legacy) is currently NOT invoked; filenames are derived locally from `header.name` inside the orchestrator for determinism and speed. The agent remains for tests/backward compatibility.
 - `generate_claude_config.py` emits helper JSON for Claude Desktop MCP configuration.
 
 Keeping documentation aligned with the code paths above ensures contributors know exactly which layer to touch when updating prompts, changing the generator, or extending the API contract.

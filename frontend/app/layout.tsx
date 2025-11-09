@@ -3,8 +3,10 @@ import { ThemeProvider } from '../components/theme-provider';
 import '../styles/globals.css';
 
 export const metadata: Metadata = {
-  title: 'Resume Workflow UI',
+  title: 'Ask Bailey',
   description: 'Local-first interface for resume tuning and document generation.'
+  ,
+  icons: '/icon.png'
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

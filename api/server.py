@@ -22,6 +22,27 @@ logging.basicConfig(level=logging.INFO)
 
 from app_agents.workflows import ResumeOrchestrator
 from resume_gen.generator import ResumeGenerator
+from datetime import datetime
+from typing import Union
+
+
+def ensure_unique_filename(dirpath: Path, filename: str) -> Path:
+    """Return a Path inside dirpath that won't overwrite an existing file.
+
+    If ``filename`` does not exist in ``dirpath``, returns ``dirpath/filename``.
+    Otherwise returns ``dirpath/{base}_{UTC_TIMESTAMP}{ext}`` where timestamp
+    uses the format YYYYmmddTHHMMSSZ.
+    """
+    # Always append a UTC timestamp to the supplied filename to avoid
+    # accidental overwrites and make output names deterministic/time-ordered.
+    if "." in filename:
+        base, ext = filename.rsplit('.', 1)
+        ext = '.' + ext
+    else:
+        base, ext = filename, ''
+    ts = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+    new_name = f"{base}_{ts}{ext}"
+    return dirpath / new_name
 
 app = FastAPI(
     title="Resume ATS DOCX Generator",
@@ -307,7 +328,22 @@ async def workflow_docx(
         # Generate DOCX
         output_dir = Path("outbox")
         output_dir.mkdir(exist_ok=True)
-        output_path = output_dir / result.filename
+        # If filename already exists, append a UTC timestamp to avoid silent overwrite.
+        def _ensure_unique_filename(dirpath: Path, filename: str) -> Path:
+            target = dirpath / filename
+            if not target.exists():
+                return target
+            name = filename
+            if "." in filename:
+                base, ext = filename.rsplit('.', 1)
+                ext = '.' + ext
+            else:
+                base, ext = filename, ''
+            ts = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+            new_name = f"{base}_{ts}{ext}"
+            return dirpath / new_name
+
+        output_path = _ensure_unique_filename(output_dir, result.filename)
         
         generator = ResumeGenerator(result.optimized_resume_json)
         generator.generate(output_path)
@@ -330,13 +366,15 @@ async def workflow_docx(
         # Return the generated DOCX directly. We previously converted DOCX -> PDF
         # in the background; to keep behavior simple we no longer generate or
         # advertise PDFs. The frontend will always receive a DOCX download.
+        # Return the actual filename used (may have timestamp suffix if a collision occurred)
+        actual_filename = output_path.name
         return FileResponse(
             path=str(output_path),
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            filename=result.filename,
+            filename=actual_filename,
             headers={
                 "Cache-Control": "no-store",
-                "Content-Disposition": f'attachment; filename="{result.filename}"',
+                "Content-Disposition": f'attachment; filename="{actual_filename}"',
             }
         )
         

@@ -186,11 +186,19 @@ class ResumeOrchestrator:
             s = s.strip()
             parts = re.findall(r"[A-Za-z0-9]+", s)
             if not parts:
-                return 'resume.docx'
-            fname = '_'.join(parts).lower() + '_resume.docx'
-            return fname
+                base = 'resume_resume'
+            else:
+                base = '_'.join(parts).lower() + '_resume'
 
-        filename = _sanitize(name) if name else 'resume.docx'
+            return base
+
+        base_name = _sanitize(name) if name else 'resume'
+
+        # Always append a UTC timestamp to make filenames time-ordered and
+        # avoid accidental overwrites. Format: YYYYmmddTHHMMSSZ
+        from datetime import datetime
+        ts = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+        filename = f"{base_name}_{ts}.docx"
         return filename, resume_json
 
     def _build_reasoning(

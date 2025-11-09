@@ -118,7 +118,7 @@ export async function POST(request: Request) {
       headersOut.set('Content-Disposition', 'attachment; filename="resume.docx"');
     }
 
-    headersOut.set('Cache-Control', 'no-store');
+    headersOut.set('Cache-Control', 'public, max-age=30');
     headersOut.set('Content-Type',
       headersOut.get('Content-Type') ?? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     );

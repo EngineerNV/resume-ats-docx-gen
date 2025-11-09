@@ -162,7 +162,7 @@ def prepare_resume_for_mcp(
             if parts:
                 fname = "_".join(parts).lower() + "_resume.docx"
                 return _sanitize_filename(fname)
-    return "resume.docx"
+    # fall through; continue building the FileNamingAgentResult below
 
     filename: str = ""
     resume_data: Dict[str, Any] = optimized_resume

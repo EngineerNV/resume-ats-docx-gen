@@ -11,6 +11,25 @@ from pydantic import ValidationError
 
 from resume_gen.generator import ResumeGenerator
 from resume_mcp.models import Resume
+from datetime import datetime
+
+
+def ensure_unique_filename(dirpath: Path, filename: str) -> Path:
+    """Return a Path inside dirpath that won't overwrite an existing file.
+
+    Mirror of `api.server.ensure_unique_filename` used by MCP tools. Appends
+    a UTC timestamp when a collision is detected.
+    """
+    # Always append a UTC timestamp to the supplied filename to avoid
+    # accidental overwrites and make output names deterministic/time-ordered.
+    if "." in filename:
+        base, ext = filename.rsplit('.', 1)
+        ext = '.' + ext
+    else:
+        base, ext = filename, ''
+    ts = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+    new_name = f"{base}_{ts}{ext}"
+    return dirpath / new_name
 
 
 def generate_resume_tool(resume_data: Dict[str, Any], filename: str) -> Dict[str, Any]:
@@ -47,6 +66,21 @@ def generate_resume_tool(resume_data: Dict[str, Any], filename: str) -> Dict[str
     outbox.mkdir(exist_ok=True)
     
     output_path = outbox / filename
+    # If the target exists, append a UTC timestamp to avoid overwriting.
+    def _ensure_unique_filename(dirpath: Path, filename: str) -> Path:
+        target = dirpath / filename
+        if not target.exists():
+            return target
+        if "." in filename:
+            base, ext = filename.rsplit('.', 1)
+            ext = '.' + ext
+        else:
+            base, ext = filename, ''
+        ts = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+        new_name = f"{base}_{ts}{ext}"
+        return dirpath / new_name
+
+    output_path = _ensure_unique_filename(outbox, filename)
     
     try:
         # Validate resume data using Pydantic model

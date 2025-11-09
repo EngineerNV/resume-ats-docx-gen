@@ -86,6 +86,90 @@ pip install -e .[dev]
 3. Generated DOCX files are stored under `outbox/`. Delete individual files when you no longer need them.
 
 ## Quick Start
+
+### Jump Start: Ask Bailey (Web App)
+
+This guide will get you running the full-stack "Ask Bailey" web application, which includes the Next.js frontend and the FastAPI backend. You will need two separate terminals and an OpenAI API key.
+
+**1. Environment Setup (One-Time)**
+
+Before you start, you need to set up your environment variables. This project requires two separate `.env` files.
+
+*   **Backend Environment (`.env`):**
+    In the project root, copy the example file:
+    ```bash
+    cp .env.example .env
+    ```
+    Now, edit the new `.env` file and add your OpenAI API key. You can get a key by following the guide at [platform.openai.com/docs/quickstart](https://platform.openai.com/docs/quickstart#:~:text=Create%20and%20export%20an%20API%20key).
+    ```
+    OPENAI_API_KEY=your-openai-api-key-here
+    ```
+
+*   **Frontend Environment (`frontend/.env.local`):**
+    Create a new file at `frontend/.env.local` and add the following lines to connect the frontend to your backend API.
+    ```
+    NEXT_PUBLIC_PY_WORKFLOW_DOCX_URL=http://localhost:8000/api/workflow/docx
+    ```
+
+**2. Run the Application**
+
+You will need two separate terminals running simultaneously.
+
+**Terminal 1: Start the Backend (FastAPI)**
+
+The backend server powers the resume processing logic and runs on **`http://localhost:8000`**.
+
+1.  **Create and Activate Virtual Environment:**
+    From the project root, create a virtual environment if you haven't already:
+    ```bash
+    python3 -m venv .venv
+    ```
+    Then, activate it:
+
+    *   **macOS/Linux (bash):**
+        ```bash
+        source .venv/bin/activate
+        ```
+    *   **Windows (PowerShell):**
+        ```powershell
+        .venv\Scripts\activate
+        ```
+
+2.  **Install Dependencies (if needed):**
+    If you haven't installed the Python packages yet:
+    ```bash
+    pip install -e .[dev]
+    ```
+
+3.  **Run the Server:**
+    ```bash
+    python start_server.py
+    ```
+    > **Note:** Ensure port `8000` is free on your machine.
+
+**Terminal 2: Start the Frontend (Next.js)**
+
+The frontend provides the user interface and runs on **`http://localhost:3000`**.
+
+1.  **Navigate to Frontend Directory:**
+    ```bash
+    cd frontend
+    ```
+
+2.  **Install Dependencies (if needed):**
+    If you haven't installed the Node.js packages yet:
+    ```bash
+    npm install
+    ```
+
+3.  **Run the Development Server:**
+    ```bash
+    npm run dev
+    ```
+    > **Note:** Ensure port `3000` is free on your machine.
+
+Once both are running, open your browser to `http://localhost:3000` to use the "Ask Bailey" web app.
+
 ### 1. CLI – JSON → DOCX
 ```bash
 resume-gen render --in example_resume.json --out outbox/my_resume.docx
