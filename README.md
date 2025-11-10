@@ -4,6 +4,16 @@ A batteries-included toolkit for turning structured or free-form resume data int
 
 [![Watch Demo](https://img.shields.io/badge/▶️%20Watch-Demo-blue)](https://drive.google.com/file/d/1T_HkT1u1QmoNtklUejggQ_K69q3ldVpm/view?usp=drive_link)
 
+[![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.4-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-3.4-06B6D4?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-Agents%20SDK-412991?logo=openai&logoColor=white)](https://platform.openai.com/)
+[![Pydantic](https://img.shields.io/badge/Pydantic-2.0+-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
+[![pytest](https://img.shields.io/badge/pytest-7.0+-0A9EDC?logo=pytest&logoColor=white)](https://pytest.org/)
+
 ## 📦 What's Inside
 - **CLI (`resume-gen`)** – render DOCX files directly from JSON.
 - **FastAPI server (`resume-api`)** – orchestrates agent workflows (resume/context extraction, job research, JSON builder) via `app_agents.workflows.ResumeOrchestrator` and streams the result into the DOCX generator.
@@ -172,7 +182,7 @@ The frontend provides the user interface and runs on **`http://localhost:3000`**
 
 Once both are running, open your browser to `http://localhost:3000` to use the "Ask Bailey" web app.
 
-### 💻 CLI – JSON → DOCX (python-docx)
+### 1. 💻 CLI – JSON → DOCX (python-docx)
 ```bash
 resume-gen render --in example_resume.json --out outbox/my_resume.docx
 ```
@@ -186,7 +196,7 @@ Once you have your JSON (e.g., saved as `my_resume.json`), render it:
 resume-gen render --in my_resume.json --out outbox/my_resume.docx
 ```
 
-### 🔌 FastAPI Server (Agent Orchestration API)
+### 2. 🔌 FastAPI Server (Agent Orchestration API)
 ```bash
 # Inside the virtualenv
 resume-api               # or: uvicorn api.server:app --reload
@@ -205,13 +215,13 @@ curl -X POST http://localhost:8000/api/workflow/docx \
   -o outbox/jordan_job_tuned.docx
 ```
 
-### 🤖 MCP Server (Model Context Protocol for Claude/Copilot)
+### 3. 🤖 MCP Server (Model Context Protocol for Claude/Copilot)
 ```bash
 python -m resume_mcp.server
 ```
 Configure Claude Desktop or VS Code Copilot to call the `generate_resume` MCP tool (see `resume_mcp/README.md`).
 
-### ⚛️ Frontend (Next.js 14 + React + TypeScript + Tailwind)
+### 4. ⚛️ Frontend (Next.js 14 + React + TypeScript + Tailwind)
 ```bash
 cd frontend
 npm install
