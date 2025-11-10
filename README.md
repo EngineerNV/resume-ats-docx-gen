@@ -4,7 +4,17 @@ A batteries-included toolkit for turning structured or free-form resume data int
 
 [![Watch Demo](https://img.shields.io/badge/▶️%20Watch-Demo-blue)](https://drive.google.com/file/d/1T_HkT1u1QmoNtklUejggQ_K69q3ldVpm/view?usp=drive_link)
 
-## What's Inside
+[![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.4-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-3.4-06B6D4?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-Agents%20SDK-412991?logo=openai&logoColor=white)](https://platform.openai.com/)
+[![Pydantic](https://img.shields.io/badge/Pydantic-2.0+-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
+[![pytest](https://img.shields.io/badge/pytest-7.0+-0A9EDC?logo=pytest&logoColor=white)](https://pytest.org/)
+
+## 📦 What's Inside
 - **CLI (`resume-gen`)** – render DOCX files directly from JSON.
 - **FastAPI server (`resume-api`)** – orchestrates agent workflows (resume/context extraction, job research, JSON builder) via `app_agents.workflows.ResumeOrchestrator` and streams the result into the DOCX generator.
 - **Agent workspace (`app_agents/`)** – reusable OpenAI Agents SDK building blocks plus testing/mocking helpers.
@@ -12,12 +22,12 @@ A batteries-included toolkit for turning structured or free-form resume data int
 - **Next.js frontend (`frontend/`)** – experiment with the workflow through a modern UI before wiring it into real systems.
 - **Examples & tests** – end-to-end scripts and an extensive pytest suite.
 
-## Tech Stack
+## 🛠️ Tech Stack: Python + Next.js + OpenAI Agents
 - **Python** 3.8+, `python-docx`, `click`, `FastAPI`, `uvicorn`, `pydantic`, `mcp`, `docx2pdf`, `openai` + OpenAI Agents SDK helpers.
 - **AI workflows** built on the OpenAI Responses API + Agents SDK (see `app_agents/workflows`).
 - **Frontend** with Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS, Radix UI, `react-dropzone`, `next-themes`, and Zod validation.
 
-## Repository Layout
+## 📁 Repository Layout
 ```
 resume-ats-docx-gen/
 ├── resume_gen/          # Core generator + CLI entry point
@@ -31,7 +41,7 @@ resume-ats-docx-gen/
 └── README.md            # You are here
 ```
 
-## Architecture Overview
+## 🏗️ Architecture Overview: FastAPI + Agent Workflows + MCP
 ```
                 ┌────────────────────────────┐
 User Input →    │  FastAPI Server (api/)     │  
@@ -68,7 +78,7 @@ on direct agent access.
 ```
 Optional: `resume_mcp/server.py` exposes the same generator/validation stack to MCP clients so Copilot or Claude can call `generate_resume`. The FastAPI server calls `ResumeGenerator` directly for lower latency, while MCP clients continue to use the tool interface.
 
-## Installation
+## ⚙️ Installation (Python 3.8+)
 ```bash
 # Clone and enter the repo
 git clone https://github.com/EngineerNV/resume-ats-docx-gen.git
@@ -82,14 +92,14 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -e .[dev]
 ```
 
-## Configuration
+## 🔧 Configuration: OpenAI API + Environment Setup
 1. Copy `.env.example` to `.env` and set `OPENAI_API_KEY` (and optionally `OPENAI_BASE_URL`).
 2. Frontend settings live in `frontend/.env.local` (see `frontend/README.md`).
 3. Generated DOCX files are stored under `outbox/`. Delete individual files when you no longer need them.
 
-## Quick Start
+## 🚀 Quick Start
 
-### Jump Start: Ask Bailey (Web App)
+### 🌐 Jump Start: Ask Bailey (Next.js + FastAPI Full-Stack)
 
 This guide will get you running the full-stack "Ask Bailey" web application, which includes the Next.js frontend and the FastAPI backend. You will need two separate terminals and an OpenAI API key.
 
@@ -172,7 +182,7 @@ The frontend provides the user interface and runs on **`http://localhost:3000`**
 
 Once both are running, open your browser to `http://localhost:3000` to use the "Ask Bailey" web app.
 
-### 1. CLI – JSON → DOCX
+### 1. 💻 CLI – JSON → DOCX (python-docx)
 ```bash
 resume-gen render --in example_resume.json --out outbox/my_resume.docx
 ```
@@ -186,7 +196,7 @@ Once you have your JSON (e.g., saved as `my_resume.json`), render it:
 resume-gen render --in my_resume.json --out outbox/my_resume.docx
 ```
 
-### 2. FastAPI server
+### 2. 🔌 FastAPI Server (Agent Orchestration API)
 ```bash
 # Inside the virtualenv
 resume-api               # or: uvicorn api.server:app --reload
@@ -205,13 +215,13 @@ curl -X POST http://localhost:8000/api/workflow/docx \
   -o outbox/jordan_job_tuned.docx
 ```
 
-### 3. MCP server (optional AI client integration)
+### 3. 🤖 MCP Server (Model Context Protocol for Claude/Copilot)
 ```bash
 python -m resume_mcp.server
 ```
 Configure Claude Desktop or VS Code Copilot to call the `generate_resume` MCP tool (see `resume_mcp/README.md`).
 
-### 4. Frontend
+### 4. ⚛️ Frontend (Next.js 14 + React + TypeScript + Tailwind)
 ```bash
 cd frontend
 npm install
@@ -219,7 +229,7 @@ npm run dev
 ```
 Set `USE_MOCK=false` and point `PY_WORKFLOW_JSON_URL` / `PY_WORKFLOW_DOCX_URL` at the FastAPI server to exercise the real workflow.
 
-## JSON Format
+## 📄 JSON Format (Pydantic-Validated Schema)
 Input JSON matches the schema enforced by `resume_mcp/models.py`. Minimal example:
 ```json
 {
@@ -275,12 +285,12 @@ Input JSON matches the schema enforced by `resume_mcp/models.py`. Minimal exampl
 ```
 See `example_resume.json`, `john_doe_resume.json`, and `example_with_summary.json` for fully-populated payloads.
 
-## Customization
+## 🎨 Customization & Extension
 - Edit `resume_gen/config.json` to tweak fonts, spacing, and hyperlink colors.
 - `resume_gen/generator.py` exposes helpers for adding new sections (e.g., certifications) if your JSON schema evolves.
 - `app_agents/prompts.py` contains the instructions used by each agent. Update prompts/models there before re-exporting orchestrations.
 
-## Testing
+## 🧪 Testing (Pytest + Agent Mocks)
 The test suite mixes pure Python tests and integration checks. Most FastAPI + agent tests expect a valid `OPENAI_API_KEY`; others rely on `app_agents.testing.FakeOpenAI` fixtures.
 
 ```bash
@@ -296,7 +306,7 @@ Key entry points:
 - `tests/test_mcp.py` – ensures the MCP server registers the correct tools/resources.
 - `tests/test_resume_workflow.py` – covers `ResumeOrchestrator` logic with mock responses.
 
-## Additional Documentation
+## 📚 Additional Documentation
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) – deeper dive into the data flow and design choices.
 - [`api/README.md`](api/README.md) – detailed API contract, examples, troubleshooting.
 - [`app_agents/README.md`](app_agents/README.md) – how the OpenAI agent workflows are wired together.
@@ -304,5 +314,5 @@ Key entry points:
 - [`frontend/README.md`](frontend/README.md) – UI setup, environment flags, feature list.
 - [`tests/README.md`](tests/README.md) – overview of the pytest suite.
 
-## License
+## 📜 License
 MIT edited - Nick License v1 (Personal-Use, Non-Commercial, No-AI)
