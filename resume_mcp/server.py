@@ -18,11 +18,14 @@ Usage:
     python -m mcp.server
 """
 
+import argparse
+import os
 from pathlib import Path
 from typing import Union
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import BlobResourceContents, TextContent
+from starlette.responses import JSONResponse
 
 from resume_mcp.models import ResumeGenerateRequest
 from resume_mcp.tools import generate_resume_tool, get_outbox_location
@@ -42,6 +45,8 @@ OUTBOX_DIR.mkdir(exist_ok=True)
 # Initialize FastMCP server
 mcp = FastMCP(
     name="resume-generator",
+    host=os.getenv("RESUME_MCP_HOST", "127.0.0.1"),
+    port=int(os.getenv("RESUME_MCP_PORT", "8000")),
 )
 
 
@@ -147,10 +152,29 @@ def get_outbox(filename: str) -> Union[BlobResourceContents, TextContent]:
     )
 
 
+@mcp.custom_route("/healthz", methods=["GET"])
+async def healthz(_request):
+    """Health endpoint for container orchestration and local checks."""
+    return JSONResponse({"status": "ok", "server": "resume-generator"})
+
+
 # Entry point for direct execution
 def main():
     """Run the MCP server."""
-    mcp.run()
+    parser = argparse.ArgumentParser(description="Run the resume MCP server")
+    parser.add_argument(
+        "--transport",
+        choices=["stdio", "sse", "streamable-http"],
+        default=os.getenv("RESUME_MCP_TRANSPORT", "stdio"),
+        help="MCP transport to use",
+    )
+    parser.add_argument(
+        "--mount-path",
+        default=os.getenv("RESUME_MCP_MOUNT_PATH"),
+        help="Optional mount path for SSE transport",
+    )
+    args = parser.parse_args()
+    mcp.run(transport=args.transport, mount_path=args.mount_path)
 
 
 if __name__ == "__main__":

@@ -53,7 +53,7 @@ class EducationEntry(BaseModel):
     
     degree: str = Field(..., min_length=1, description="Degree name (e.g., 'Bachelor of Science in Computer Science')")
     institution: str = Field(..., min_length=1, description="University or institution name")
-    dates: str = Field(..., min_length=1, description="Years attended (e.g., '2015 - 2019')")
+    dates: Optional[str] = Field(None, description="Years attended (e.g., '2015 - 2019')")
     location: Optional[str] = Field(None, description="City, State")
     gpa: Optional[str] = Field(None, description="GPA (e.g., '3.8/4.0')")
 
@@ -64,6 +64,30 @@ class AwardDetail(BaseModel):
     title: str = Field(..., min_length=1, description="Award title")
     date: Optional[str] = Field(None, description="Date received")
     description: Optional[str] = Field(None, description="Award description")
+
+
+class ProjectEntry(BaseModel):
+    """Project entry."""
+
+    name: str = Field(..., min_length=1, description="Project name")
+    bullets: Optional[List[str]] = Field(
+        None,
+        description="Project bullets describing impact and implementation",
+    )
+    description: Optional[str] = Field(
+        None,
+        description="Single-line project description",
+    )
+
+    @model_validator(mode='after')
+    def check_bullets_or_description(self):
+        """Ensure a project has either bullets or description."""
+        if not self.bullets and not self.description:
+            raise ValueError(
+                "Project entry must include either 'bullets' or 'description'. "
+                "Provide at least one to describe the project."
+            )
+        return self
 
 
 class Resume(BaseModel):
@@ -83,6 +107,10 @@ class Resume(BaseModel):
         description="Skills as categories dict (e.g., {'Languages': ['Python']}) or simple list"
     )
     experience: Optional[List[ExperienceEntry]] = Field(None, description="Work experience entries")
+    projects: Optional[List[Union[str, ProjectEntry]]] = Field(
+        None,
+        description="Projects (simple strings or structured project objects)",
+    )
     education: Optional[List[EducationEntry]] = Field(None, description="Education entries")
     awards: Optional[List[Union[str, AwardDetail]]] = Field(
         None,

@@ -102,9 +102,8 @@ generate_resume(
 - Fails fast with detailed error messages
 - Tells LLMs exactly what's wrong and how to fix it
 
-### 3. **Temp Directory for Output**
-- Generated files saved to `{temp}/resume-mcp-outbox/`
-- On macOS: `/var/folders/.../T/resume-mcp-outbox/`
+### 3. **Project Outbox for Output**
+- Generated files are saved to `<repo>/outbox/`
 - Accessible via `outbox://` resources
 
 ### 4. **Filename Required**

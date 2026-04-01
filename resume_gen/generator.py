@@ -550,7 +550,43 @@ class ResumeGenerator:
                     award_text += f" - {description}"
                 
                 self._add_bullet_paragraph(award_text)
-    
+
+    def _add_projects_section(self):
+        """Add projects section.
+
+        Supports:
+        - simple string entries
+        - structured entries with name + bullets
+        - structured entries with name + description
+        """
+        projects_data = self.data.get("projects", [])
+        if not projects_data:
+            return
+
+        self._add_section_header("Projects")
+
+        for project in projects_data:
+            if isinstance(project, str):
+                self._add_bullet_paragraph(project)
+                continue
+
+            if not isinstance(project, dict):
+                continue
+
+            name = project.get("name", "")
+            description = project.get("description", "")
+            bullets = project.get("bullets", [])
+
+            if name:
+                self._add_paragraph(name, bold=True, space_after=1)
+
+            if description:
+                self._add_bullet_paragraph(description)
+
+            if bullets:
+                for bullet in bullets:
+                    self._add_bullet_paragraph(bullet)
+
     def _iter_section_builders(self) -> Iterator[Tuple[str, Callable[[], None]]]:
         """Yield section builders in the order they should appear in the DOCX.
 
@@ -561,6 +597,7 @@ class ResumeGenerator:
         yield "professional_summary", self._add_professional_summary_section
         yield "skills", self._add_skills_section
         yield "experience", self._add_experience_section
+        yield "projects", self._add_projects_section
         yield "education", self._add_education_section
         yield "awards", self._add_awards_section
 
