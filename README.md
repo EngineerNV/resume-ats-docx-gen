@@ -221,7 +221,36 @@ python -m resume_mcp.server
 ```
 Configure Claude Desktop or VS Code Copilot to call the `generate_resume` MCP tool (see `resume_mcp/README.md`).
 
+<<<<<<< Updated upstream
 ### 4. ⚛️ Frontend (Next.js 14 + React + TypeScript + Tailwind)
+=======
+#### Run MCP in Docker (localhost-only)
+Use this when you want deterministic start/stop control from chat while keeping access local.
+
+```bash
+# Build and start in background
+docker compose up -d --build resume-mcp
+
+# Check health/status
+docker compose ps resume-mcp
+curl http://127.0.0.1:8765/healthz
+
+# Tail logs
+docker compose logs -f resume-mcp
+
+# Stop server (manual lifecycle)
+docker compose stop resume-mcp
+# or remove container:
+docker compose down
+```
+
+Notes:
+- The service binds to `127.0.0.1:8765` only (no external tunnel/public exposure).
+- Generated DOCX files persist in repo `outbox/` via a mounted volume.
+- Default container transport is MCP `sse` (`/sse` endpoint), plus `/healthz` for readiness checks.
+
+### 4. Frontend
+>>>>>>> Stashed changes
 ```bash
 cd frontend
 npm install

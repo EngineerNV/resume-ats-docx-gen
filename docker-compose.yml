@@ -1,0 +1,25 @@
+services:
+  resume-mcp:
+    container_name: resume-mcp
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      RESUME_MCP_TRANSPORT: sse
+      RESUME_MCP_HOST: 0.0.0.0
+      RESUME_MCP_PORT: "8765"
+    ports:
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - ./outbox:/app/outbox
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8765/healthz', timeout=2).status == 200 else 1)"
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
